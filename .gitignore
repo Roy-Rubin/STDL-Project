@@ -1,0 +1,12 @@
+# Folders i dont want to commit #
+###################
+cs236781_hw2/
+cs236781_hw3/
+spatialGeneExpressionData/
+
+# Files i dont want to commit #
+###################
+*.sh
+*.idea
+*.ipynb_checkpoints
+*.ipynb
