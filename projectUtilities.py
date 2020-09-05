@@ -92,3 +92,5 @@ def printInfoAboutCustomDataset(dataset_object):
         f'ImageFolder[0] == __getitem__ method: note that this is a 2d tuple of a tensor and a y_value: \n{dataset_object[0]} <-- note that the class is currently not relevant')
 
     pass
+
+    

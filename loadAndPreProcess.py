@@ -20,22 +20,25 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
 
     print("\n----- entered function load_dataframes_from_mtx_and_tsv -----")
 
+    print("started reading features.tsv")
+    path_to_features = path_to_mtx_tsv_files_dir + "/features.tsv"  # TODO: note no gz
+    features_dataframe = pd.read_csv(path_to_features, sep='\t', header=None)
+    features_dataframe.columns = ['feature_ids', 'gene_names', 'feature_types']  # giving columns their names
+    print("V  finished reading features.tsv")
+
+    print("started reading barcodes.tsv")
+    path_to_barcodes = path_to_mtx_tsv_files_dir + "/barcodes.tsv"  # TODO: note no gz
+    barcodes_datafame = pd.read_csv(path_to_barcodes, sep='\t', header=None)
+    barcodes_datafame.columns = ['barcodes']  # giving columns their names
+    print("V  finished reading barcodes.tsv")
+    barcodes = barcodes_datafame['barcodes'].tolist()
+
+    print("started reading matrix.mtx. this might take some time ...")
     path_to_matrix = path_to_mtx_tsv_files_dir + "/matrix.mtx"  # TODO: note no gz
     matrix = scipy.io.mmread(path_to_matrix)
     matrix_dataframe = pd.DataFrame.sparse.from_spmatrix(
         matrix)  # todo: note sure this works. from: https://pandas.pydata.org/docs/user_guide/sparse.html
-    print("-DBG-: finished reading matrix.mtx")
-
-    path_to_features = path_to_mtx_tsv_files_dir + "/features.tsv"  # TODO: note no gz
-    features_dataframe = pd.read_csv(path_to_features, sep='\t', header=None)
-    features_dataframe.columns = ['feature_ids', 'gene_names', 'feature_types']  # giving columns their names
-    print("-DBG-: finished reading features.tsv")
-
-    path_to_barcodes = path_to_mtx_tsv_files_dir + "/barcodes.tsv"  # TODO: note no gz
-    barcodes_datafame = pd.read_csv(path_to_barcodes, sep='\t', header=None)
-    barcodes_datafame.columns = ['barcodes']  # giving columns their names
-    print("-DBG-: finished reading barcodes.tsv")
-    barcodes = barcodes_datafame['barcodes'].tolist()
+    print("V  finished reading matrix.mtx")
 
     # print information if requested by user
     yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
@@ -58,7 +61,7 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
 def load_dataset_from_images_folder(path_to_images):
     print("\n----- entered function load_dataset_from_pictures_folder -----")
 
-    # fix_image_filenames()  # !!! NOTE: this was executed once to change the file name.
+    # fix_image_filenames()  # !!! NOTE: this was executed once to change the file name. # TODO
 
     im_hight_and_width_size = 176  # NOTE <--
     tf = torchTransform.Compose([
@@ -78,8 +81,7 @@ def load_dataset_from_images_folder(path_to_images):
     # get input from user
     choice = input("Do you wish to print information about the ImageFolder dataset object ? [yes/no]")  
     if choice in yes:
-        #projectUtilities.printInfoAboutCustomDataset(dataset_object)  #TODO: this is not working for some strange reason ...
-        print("currently not working... will be resolved in the near future")
+        projectUtilities.printInfoAboutCustomDataset(dataset_object) 
     elif choice in no:
         pass
     else:
