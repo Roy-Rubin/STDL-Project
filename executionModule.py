@@ -48,7 +48,7 @@ def runTest1(dataset : Dataset, device):
     print(f'note - number of convolutions is supposed to be {len(channels)}')
     print(f'note - number of (hidden) linear layers is supposed to be {len(hidden_dims)}')
     model = ConvNet(in_size, output_size, channels=channels, pool_every=pool_every,
-                           hidden_dims=hidden_dims).to(device=device)
+                           hidden_dims=hidden_dims)
     loss_fn = torch.nn.CrossEntropyLoss()
     learning_rate = 1e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -79,11 +79,11 @@ def runTest1(dataset : Dataset, device):
             x, y = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25
             
             # TODO: check if this is needed
-            x.to(device=device)
-            y.to(device=device)
+            #x.to(device=device)
+            #y.to(device=device)
             
             # Forward pass: compute predicted y by passing x to the model.
-            y_pred = model(x).to(device=device)  # TODO: check if to_device is needed
+            y_pred = model(x)  # TODO: check if .to(device=device) is needed
 
             # Compute (and print) loss.
             loss = loss_fn(y_pred, y)  # todo: check oder
