@@ -2,12 +2,13 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import random_split
 import numpy as np
+from sklearn.decomposition import NMF
 
 from deepNetworkArchitechture import ConvNet
 
 
-def runTest1(dataset : Dataset, device):
-
+def runTest1_singleGenePrediction(dataset : Dataset, device):
+    
     print("\n----- entered function runTest1 -----")
 
 
@@ -162,5 +163,100 @@ def runTest1(dataset : Dataset, device):
     print(f'finished all epochs ! \nnum of total correct predicions: {total_correct_predictions} / {len(ds_train)}')
 
     print("\n----- finished function runTest1 -----\n")
+
+    pass
+
+
+def runTest2_allGenePrediction_dimReduction_KHighestVariances(dataset : Dataset, device):
+    
+    print("\n----- entered function runTest2_allGenePrediction_dimReduction_KHighestVariances -----")
+
+
+    '''
+    prep our dataset and dataloaders
+    '''
+    batch_size = 25
+    split_lengths = [int(len(dataset) * 0.9), int(len(dataset) * 0.1)]  # this didnt work .... bad numbers \o/
+    split_lengths = [3000, 813]  # since there are 3813 samples overall, 3000 is about 78% of the ds
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
+    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
+
+    print(f'verify size of ds_train {len(ds_train)}')
+    print(f'verify size of ds_test {len(ds_test)}')
+    print(f'verify size of dl_train {len(dl_train)}')
+    print(f'verify size of dl_test {len(dl_test)}')
+    print(f'verify size of dl_test {len(dl_test)}')
+    print(f'verify batch_size is {batch_size} ')
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+
+    print(dataset[0])
+    x0, y0 = dataset[0]
+    print(f'A single image\'s shape will be like x0.shape : {x0.shape}')
+    print(f'    the latent tensor (y) of that image will be of shape {y0.shape}')
+
+    # add batch dimension
+    x0 = x0.unsqueeze(0)  # ".to(device)"
+    print(f'A single image\'s shape will be like x0.shape - after unsqueeze : {x0.shape}')
+
+
+    
+
+    print("\n----- finished function runTest2_allGenePrediction_dimReduction_KHighestVariances -----\n")
+
+    pass
+
+
+def runTest3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
+    
+    print("\n----- entered function runTest3_allGenePrediction_dimReduction_NMF -----")
+
+
+    print("test printing the ds:")  
+    print(f'W len {len(dataset.W)}')
+    print(f'W type {type(dataset.W)}')
+    print(f'W shape {dataset.W.shape}')
+    print(f'H len {len(dataset.H)}')
+    print(f'H len {type(dataset.H)}')
+    print(f'H shape {dataset.H.shape}')
+    print(f'W len {len(dataset.W)}')
+
+    '''
+    prep our dataset and dataloaders
+    '''
+    batch_size = 25
+    split_lengths = [int(len(dataset) * 0.9), int(len(dataset) * 0.1)]  # this didnt work .... bad numbers \o/
+    split_lengths = [3000, 813]  # since there are 3813 samples overall, 3000 is about 78% of the ds
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
+    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
+
+    print(f'verify size of ds_train {len(ds_train)}')
+    print(f'verify size of ds_test {len(ds_test)}')
+    print(f'verify size of dl_train {len(dl_train)}')
+    print(f'verify size of dl_test {len(dl_test)}')
+    print(f'verify size of dl_test {len(dl_test)}')
+    print(f'verify batch_size is {batch_size} ')
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+
+    max_batches = 1000000 # ?
+    x0, y0 = dataset[0]
+    print(f'A single image\'s shape will be like x0.shape : {x0.shape}')
+    print(f'    the latent tensor (y) of that image will be of shape {y0.shape}')
+
+    # add batch dimension
+    x0 = x0.unsqueeze(0)  # ".to(device)"
+    print(f'A single image\'s shape will be like x0.shape - after unsqueeze : {x0.shape}')
+
+
+    
+
+    print("\n----- finished function runTest3_allGenePrediction_dimReduction_NMF -----\n")
 
     pass

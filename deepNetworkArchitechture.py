@@ -53,7 +53,6 @@ class ConvNet(nn.Module):
         FURTHERMORE: the number of channels in each layer, is a function ONLY of the number of filters (= the number of kernels)  
 
         '''
-        # ====== YOUR CODE: ======
         N = len(self.channels)
         P = self.pool_every
         self.num_pools_performed = 0
@@ -69,7 +68,6 @@ class ConvNet(nn.Module):
             #     layers.append(nn.MaxPool2d(kernel_size=2))
             #     self.num_pools_performed += 1
 
-        # ========================
 
         seq = nn.Sequential(*layers)
         return seq
