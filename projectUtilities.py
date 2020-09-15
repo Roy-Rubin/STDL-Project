@@ -32,7 +32,7 @@ def printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame):
         f'\nnumber of different values in matrix_dataframe is  {number_of_different_values} ')
     
     num_of_values_in_matrix = len(matrix_dataframe.index)*len(matrix_dataframe.columns) # the first one is the num of rows    
-    
+
     from collections import Counter
     print(
         f'\nlist of 10 most common values in matrix_dataframe is: ')
@@ -138,7 +138,7 @@ def printInfoAboutReducedDF(matrix_dataframe):
     pass
 
 
-def printInfoAboutCustomDataset(dataset_object):
+def printInfoAboutImageFolderDataset(dataset_object):
     print(f'\ndataset loaded. found {len(dataset_object)} images in dataset folder.')
     print(f'returned object type: {type(dataset_object)}')
 

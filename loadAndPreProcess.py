@@ -10,10 +10,12 @@ import torchvision
 import torchvision.transforms as torchTransform
 from torchvision.datasets import ImageFolder, DatasetFolder
 from sklearn.decomposition import NMF
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 
 import deepNetworkArchitechture
 import projectUtilities 
+
+import torch
 
 
 def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
@@ -63,6 +65,9 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
 
 
 def load_dataset_from_images_folder(path_to_images):
+    '''
+    NOTE: the dataset refered to here is the imageFolder dataset created from the original images folder
+    '''
     print("\n----- entered function load_dataset_from_pictures_folder -----")
 
     # fix_image_filenames()  # !!! NOTE: this was executed once to change the file name. # TODO
@@ -85,7 +90,7 @@ def load_dataset_from_images_folder(path_to_images):
     # get input from user
     choice = input("Do you wish to print information about the ImageFolder dataset object ? [yes/no]")  
     if choice in yes:
-        projectUtilities.printInfoAboutCustomDataset(dataset_object) 
+        projectUtilities.printInfoAboutImageFolderDataset(dataset_object) 
     elif choice in no:
         pass
     else:
@@ -95,6 +100,97 @@ def load_dataset_from_images_folder(path_to_images):
     print("\n----- finished function load_dataset_from_pictures_folder -----\n")
 
     return dataset_object
+
+
+def load_augmented_imageFolder_DS_from_images_folder(path_to_images):
+    '''
+    NOTE: 
+    '''
+    print("\n----- entered function load_dataset_from_pictures_folder -----")
+
+    # fix_image_filenames()  # !!! NOTE: this was executed once to change the file name. # TODO
+
+    im_hight_and_width_size = 176  # NOTE <--
+    
+    # note that this next "compose" actually a pipeline
+    tf_original =   torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_original = ImageFolder(os.path.dirname(path_to_images), tf_original)
+
+    # note that this next "compose" actually a pipeline
+    tf_rotated_90 = torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # Rotate image:
+                    # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
+                    torchTransform.RandomRotation((90,90)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_90 = ImageFolder(os.path.dirname(path_to_images), tf_rotated_90)
+
+    # note that this next "compose" actually a pipeline
+    tf_rotated_180 = torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # Rotate image:
+                    # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
+                    torchTransform.RandomRotation((180,180)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_180 = ImageFolder(os.path.dirname(path_to_images), tf_rotated_180)
+
+    # note that this next "compose" actually a pipeline
+    tf_rotated_270 = torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # Rotate image:
+                    # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
+                    torchTransform.RandomRotation((270,270)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_270 = ImageFolder(os.path.dirname(path_to_images), tf_rotated_270)
+
+    # now that we finished creating the datasets, we will create a huge new dataset. 
+    # important premise - in all roatations, image names remain the same. this is important because this is our mapping to our gene expression values from matrix_dataframe
+    datasets_to_concatanate = [dataset_object_original, dataset_object_90, dataset_object_180, dataset_object_270]
+    final_dataset_object = ConcatDataset(datasets_to_concatanate)
+
+
+    # # print information if requested by user
+    # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
+    # no = {'no','n','NO','N'}
+    # # get input from user
+    # choice = input("Do you wish to print information about the ImageFolder dataset object ? [yes/no]")  
+    # if choice in yes:
+    #     projectUtilities.printInfoAboutImageFolderDataset(final_dataset_object) 
+    # elif choice in no:
+    #     pass
+    # else:
+    #     print("since you did not input a yes, thats a no :)")
+
+    
+    print("\n----- finished function load_dataset_from_pictures_folder -----\n")
+
+    return final_dataset_object
 
 
 def cut_empty_genes(orig_df):
@@ -127,9 +223,6 @@ def cut_empty_genes(orig_df):
 
     # return 
     return reduced_df, mapping 
-
-
-import torch
 
 
 class STDL_Dataset(torch.utils.data.Dataset):
