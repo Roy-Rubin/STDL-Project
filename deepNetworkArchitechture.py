@@ -238,46 +238,141 @@ class DecoderCNN(nn.Module): #TODO: note that this has not changed rom hw3. mayb
         return torch.tanh(self.cnn(h))
 
 
+class EncoderFullyConnected(nn.Module): 
+    def __init__(self, in_features, connected_layers_dim_list ,out_features):
+        super().__init__()
+
+        # save data
+        self.in_features = in_features
+        self.connected_layers_dim_list = connected_layers_dim_list
+        self.out_features = out_features
+        self.num_of_hidden_dims = len(connected_layers_dim_list)
+        # convinience
+        N = self.num_of_hidden_dims
+        # init the layer list
+        layers = []
+        # add all layers but the last one
+        current_num_of_features = in_features
+        for i in range(self.num_of_hidden_dims):
+            layers.append(nn.Linear(in_features=current_num_of_features, out_features=connected_layers_dim_list[i]))
+            layers.append(nn.ReLU())
+            current_num_of_features = connected_layers_dim_list[i]
+        # add the last layer (outside of the loop)
+        layers.append(nn.Linear(in_features=connected_layers_dim_list[N-1], out_features=out_features))
+
+        # create the network
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, X):
+        return self.net(X)
+
+
+class DecoderFullyConnected(nn.Module): 
+    def __init__(self, in_features, connected_layers_dim_list ,out_features):
+        super().__init__()
+
+        # save data
+        self.in_features = in_features
+        self.connected_layers_dim_list = connected_layers_dim_list
+        self.out_features = out_features
+        self.num_of_hidden_dims = len(connected_layers_dim_list)
+        # convinience
+        N = self.num_of_hidden_dims
+        # init the layer list
+        layers = []
+        # add all layers but the last one
+        current_num_of_features = in_features
+        for i in range(self.num_of_hidden_dims):
+            layers.append(nn.Linear(in_features=current_num_of_features, out_features=connected_layers_dim_list[i]))
+            layers.append(nn.ReLU())
+            current_num_of_features = connected_layers_dim_list[i]
+        # add the last layer (outside of the loop)
+        layers.append(nn.Linear(in_features=connected_layers_dim_list[N-1], out_features=out_features))
+
+        # create the network
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, X):
+        return self.net(X)
+
+
 class AutoencoderNet(nn.Module):
-    def __init__(self, in_size, z_dim, device):
+    def __init__(self, in_features, connected_layers_dim_list, z_dim, batch_size, device):
         """
-        :param features_encoder: Instance of an encoder the extracts features
-        from an input.
-        :param features_decoder: Instance of a decoder that reconstructs an
-        input from it's features.
-        :param in_size: The size of one input (without batch dimension).
+        TODO: update this <--------------------------------------------------------------------------------------------------------------------------------------
+        :param in_features: ?
         :param z_dim: The latent space dimension. (the dimension that we reduce to)
         """
         super().__init__()
 
-        # ?????
-        in_channels,hight,width = in_size #TODO: verify this
+        # anouncement
+        print(f'\nentered __init__ of AutoencoderNet')
 
-        self.features_encoder = EncoderCNN(in_channels=in_channels, out_channels=z_dim)  # TODO: not sure this is true ... # TODO: note: no linear in the end of this network
-        self.features_decoder = DecoderCNN(in_channels=z_dim, out_channels=in_channels)  # TODO: not sure this is true ... # TODO: note: no linear in the end of this network
-        self.z_dim = z_dim
+        # save data from outside
         self.device = device
+        self.batch_size = batch_size
+        self.in_features = in_features # note: this number is NOT batch size dependant ! will be handeled soon
+        self.z_dim = z_dim             # note: this number is NOT batch size dependant ! will be handeled soon
 
+        # handle the effect of batch size on the number of features
+        num_of_in_features = batch_size * in_features  #NOTE: this is because in the network I am flattenning the tensor
+        num_of_out_features = batch_size * z_dim
 
-    def encode(self, x):
+        # small prep
+        reversed_list = list(reversed(connected_layers_dim_list))
+
+        # create the decoder and the encoder
+        self.encode = EncoderFullyConnected(in_features=num_of_in_features, connected_layers_dim_list=connected_layers_dim_list, out_features=num_of_out_features)  
+        self.decode = DecoderFullyConnected(in_features=num_of_out_features, connected_layers_dim_list=reversed_list, out_features=num_of_in_features)  
+
+        # for me
+        # print(f'--delete--: encode network is: \n{self.encode}')
+        # print(f'--delete--: decode network is: \n{self.decode}')
+        
+
+    def encodeWrapper(self, x):
         '''
-        #  get a latent vector z given an input x 
+        #  Convert an input vector x to a  latent vector z as output
         '''
-        device = self.device # TODO: delete this line... its here just so i remember
-
-        # z = ?
+        ## TODO: how will this be used here ?
+        device = self.device 
+        ## flatten the input to enter the model (TODO: is this needed?)
+        x_orig_shape = x.shape
+        # print(f'--delete--x_orig_shape {x_orig_shape}')
+        x_flattenned = x.flatten()
+        # print(f'--delete--x_flattened.shape {x_flattenned.shape}')
+        ## get the encoder output
+        encoder_output = self.encode(x_flattenned)
+        # print(f'--delete--encoder_output type {type(encoder_output)}')
+        # print(f'--delete--encoder_output.shape {encoder_output.shape}')
+        # print(f'--delete--assert: len(encoder_output) {len(encoder_output)} == batch_size {self.batch_size} * z_dim {self.z_dim} ')
+        ## set z to be the output but after changing the dimensions correctly
+        z = encoder_output.view(self.batch_size, self.z_dim)  #TODO: not sure about this reshapeing !!!! <--------------------------------------
+        # print(f'--delete--z.shape {z.shape}')
 
         return z
 
-    def decode(self, z):
+    def decodeWrapper(self, z):
         '''
-        #  Convert a latent vector z back into a reconstructed input x_hat.
+        #  Convert a latent vector z back into a reconstructed output x_reconstructed.
         '''
-        # x_reconstructed = ?
+        ## TODO: how will this be used here ?
+        device = self.device 
+        ## flatten the input to enter the model (TODO: is this needed?)
+        z_orig_shape = z.shape
+        # print(f'--delete--z_orig_shape {z_orig_shape}')
+        z_flattenned = z.flatten()
+        # print(f'--delete--z_flattened.shape {z_flattenned.shape}')
+
+        ## get the encoder output
+        decoder_output = self.decode(z_flattenned)
+        ## set z to be the output but after changing the dimensions correctly
+        x_reconstructed = decoder_output.view(self.batch_size, self.in_features) #TODO: not sure about this reshapeing !!!! <--------------------------------------
+        # print(f'--delete--x_reconstructed.shape {x_reconstructed.shape}')
 
         return x_reconstructed
 
 
     def forward(self, x):
-        z = self.encode(x)
-        return self.decode(z)
+        z = self.encodeWrapper(x)
+        return self.decodeWrapper(z)
