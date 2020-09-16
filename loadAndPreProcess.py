@@ -46,17 +46,17 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
         matrix)  # todo: note sure this works. from: https://pandas.pydata.org/docs/user_guide/sparse.html
     print("V  finished reading matrix.mtx")
 
-    # print information if requested by user
-    yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
-    no = {'no','n','NO','N'}
-    # get input from user
-    choice = input("Do you wish to print information about the 3 loaded dataframes ? [yes/no]")  
-    if choice in yes:
-        projectUtilities.printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame)
-    elif choice in no:
-        pass
-    else:
-        print("since you did not input a yes, thats a no :)")
+    # # print information if requested by user
+    # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
+    # no = {'no','n','NO','N'}
+    # # get input from user
+    # choice = input("Do you wish to print information about the 3 loaded dataframes ? [yes/no]")  
+    # if choice in yes:
+    #     projectUtilities.printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame)
+    # elif choice in no:
+    #     pass
+    # else:
+    #     print("since you did not input a yes, thats a no :)")
 
     
     print("\n----- finished function load_dataframes_from_mtx_and_tsv -----\n")
@@ -84,17 +84,17 @@ def load_dataset_from_images_folder(path_to_images):
 
     dataset_object = ImageFolder(os.path.dirname(path_to_images), tf)
 
-    # print information if requested by user
-    yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
-    no = {'no','n','NO','N'}
-    # get input from user
-    choice = input("Do you wish to print information about the ImageFolder dataset object ? [yes/no]")  
-    if choice in yes:
-        projectUtilities.printInfoAboutImageFolderDataset(dataset_object) 
-    elif choice in no:
-        pass
-    else:
-        print("since you did not input a yes, thats a no :)")
+    # # print information if requested by user
+    # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
+    # no = {'no','n','NO','N'}
+    # # get input from user
+    # choice = input("Do you wish to print information about the ImageFolder dataset object ? [yes/no]")  
+    # if choice in yes:
+    #     projectUtilities.printInfoAboutImageFolderDataset(dataset_object) 
+    # elif choice in no:
+    #     pass
+    # else:
+    #     print("since you did not input a yes, thats a no :)")
 
     
     print("\n----- finished function load_dataset_from_pictures_folder -----\n")
@@ -172,7 +172,7 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images):
     # now that we finished creating the datasets, we will create a huge new dataset. 
     # important premise - in all roatations, image names remain the same. this is important because this is our mapping to our gene expression values from matrix_dataframe
     datasets_to_concatanate = [dataset_object_original, dataset_object_90, dataset_object_180, dataset_object_270]
-    final_dataset_object = ConcatDataset(datasets_to_concatanate)
+    final_dataset_object = STDL_ConcatDataset_of_ImageFolders(datasets_to_concatanate)
 
 
     # # print information if requested by user
@@ -181,7 +181,7 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images):
     # # get input from user
     # choice = input("Do you wish to print information about the ImageFolder dataset object ? [yes/no]")  
     # if choice in yes:
-    #     projectUtilities.printInfoAboutImageFolderDataset(final_dataset_object) 
+    #     projectUtilities.printInfoAboutCustomConcatanatedImageFolderDataset(final_dataset_object) 
     # elif choice in no:
     #     pass
     # else:
@@ -201,6 +201,7 @@ def cut_empty_genes(orig_df):
 
     assumption: genes (features) are the rows of the df, samples are the columns
     '''
+    print(f'cutting all genes (rows) that contain only zeros ...')
     # trick from stack overflow to keep all rows that have at least one nonzero value
     reduced_df = orig_df.loc[(orig_df!=0).any(axis=1)]
     indices_of_kept_rows = list(reduced_df.index.values)
@@ -209,23 +210,22 @@ def cut_empty_genes(orig_df):
     mapping = reduced_df[["original_index_from_matrix_dataframe"]]
     reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
 
-    # print information if requested by user
-    yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
-    no = {'no','n','NO','N'}
-    # get input from user
-    choice = input("Do you wish to print information about the reduced dataframe ? [yes/no]")  
-    if choice in yes:
-        projectUtilities.printInfoAboutReducedDF(reduced_df)
-    elif choice in no:
-        pass
-    else:
-        print("since you did not input a yes, thats a no :)")
+    # # print information if requested by user
+    # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
+    # no = {'no','n','NO','N'}
+    # # get input from user
+    # choice = input("Do you wish to print information about the reduced dataframe ? [yes/no]")  
+    # if choice in yes:
+    #     projectUtilities.printInfoAboutReducedDF(reduced_df)
+    # elif choice in no:
+    #     pass
+    # else:
+    #     print("since you did not input a yes, thats a no :)")
 
     # return 
     return reduced_df, mapping 
 
 
-class STDL_Dataset(torch.utils.data.Dataset):
     '''
 
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, gene exp value)
@@ -311,7 +311,7 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
     '''
 
     def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, chosen_gene_name):
-        print("\n----- entering __init__ phase of  STDL_Dataset -----")
+        print("\n----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----")
 
         # just in case:
         # path_to_images_dir = "C:/Users/royru/Downloads/spatialGeneExpression/images"  # looks for all sub folders, finds only: # /images/  #
@@ -321,7 +321,7 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
         self.gene_name = chosen_gene_name
 
-        print("\n----- finished __init__ phase of  STDL_Dataset -----\n")
+        print("\n----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----\n")
 
     def __len__(self):
         # 'Denotes the total number of samples'
@@ -339,12 +339,17 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         :return:
         '''
 
-        curr_filename = self.imageFolder.samples[index][0]
-        curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = self.imageFolder.samples[index][0]
+            curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            curr_img_tensor, curr_filename = self.imageFolder[index]
+
         # for me
         X = curr_img_tensor  # this is actually X_i
 
-
+        #
         curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get all
         # before the first _ , second partition to get everything after \\images\\
         # TODO: note that \\images\\  might apply for windows addresses only... !?
@@ -425,8 +430,12 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         :return:
         '''
 
-        curr_filename = self.imageFolder.samples[index][0]
-        curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = self.imageFolder.samples[index][0]
+            curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            curr_img_tensor, curr_filename = self.imageFolder[index]
+
         # for me
         X = curr_img_tensor  # this is actually X_i
 
@@ -504,8 +513,12 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
         :return:
         '''
 
-        curr_filename = self.imageFolder.samples[index][0]
-        curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = self.imageFolder.samples[index][0]
+            curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            curr_img_tensor, curr_filename = self.imageFolder[index]
+
         # for me
         X = curr_img_tensor  # this is actually X_i
 
@@ -581,8 +594,12 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         :return:
         '''
 
-        curr_filename = self.imageFolder.samples[index][0]
-        curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = self.imageFolder.samples[index][0]
+            curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            curr_img_tensor, curr_filename = self.imageFolder[index]
+
         # for me
         X = curr_img_tensor  # this is actually X_i
 
@@ -746,5 +763,47 @@ class STDL_Dataset_matrix_df_for_AE_init(torch.utils.data.Dataset):
         x = self.data[:, index]  # note - this is written this way since we want a COLUMN from the matrix_df. (note: should by shape  (num_features, 1) )
                                                                                                                                     #  num_genes     
         return x
-    
+
+
+class STDL_ConcatDataset_of_ImageFolders(torch.utils.data.Dataset):
+    '''
+    NOTE: the assumption is that the list of datastes recieved as input for the __init__ method are all "ImageFolder", and all have the same size
+                but different transformations
+    '''
+    def __init__(self, datasets_list):
+        self.datasets_list = datasets_list
+        self.dataset_lengths_list = [len(ds) for ds in datasets_list]
+        self.index_offsets = np.cumsum(self.dataset_lengths_list)  # cumsum = cumulative sum. this returns a list (length of datasets_list) in which every element is a cumulative sum of the length that far.
+                                                                                              # say the original DS is size 30. then this returns: [30,60,90,120,...]
+        self.total_size = np.sum(self.dataset_lengths_list)
+        
+        # because all of the datasets are supposed to be the same images but transformed differently:
+        self.single_dataset_length = self.dataset_lengths_list[0]  #note that all datasets are supposed to be the same length
+        self.list_of_image_filenames = [filename for (filename, not_relevant) in self.datasets_list[0].samples]  #note that all datasets are supposed to be the same length
+
+
+    def __len__(self):
+        return self.total_size
+
+
+    def __getitem__(self, index):
+        '''
+        note:  index (param) is for in the range of the entire concatanated DS
+        '''
+        final_index_in_ds = index
+        for dataset_index, offset in enumerate(self.index_offsets):
+            if index < offset:
+                # if needed (if > 0) adjust index inside the wanted ds according to the cummulative index offsets
+                if dataset_index > 0:  
+                    final_index_in_ds = index - self.index_offsets[dataset_index-1]
+                # prepare information to return
+                curr_filename = self.list_of_image_filenames[final_index_in_ds]
+                curr_img_tensor = self.datasets_list[dataset_index][final_index_in_ds][0]
+                return curr_img_tensor, curr_filename
+            else: 
+                pass
+        # if we got here, the index is invalid
+        raise IndexError(f'{index} exceeds {self.length}')
+
+
   

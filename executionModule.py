@@ -3,7 +3,6 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import random_split
 import numpy as np
 from sklearn.decomposition import NMF
-
 from deepNetworkArchitechture import ConvNet
 
 
@@ -16,8 +15,9 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
     prep our dataset and dataloaders
     '''
     batch_size = 25
-    split_lengths = [int(len(dataset) * 0.9), int(len(dataset) * 0.1)]  # this didnt work .... bad numbers \o/
-    split_lengths = [3000, 813]  # since there are 3813 samples overall, 3000 is about 78% of the ds
+    train_ds_size = int(len(dataset) * 0.8)
+    test_ds_size = len(dataset) - train_ds_size
+    split_lengths = [train_ds_size, test_ds_size]  
     ds_train, ds_test = random_split(dataset, split_lengths)
     dl_train = DataLoader(ds_train, batch_size, shuffle=True)
     dl_test = DataLoader(ds_test, batch_size, shuffle=True)
@@ -54,7 +54,7 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
     model = ConvNet(in_size, output_size, channels=channels, pool_every=pool_every, hidden_dims=hidden_dims)
     if device.type == 'cuda':
         model = model.to(device=device)  # 030920 test: added cuda
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = torch.nn.MSELoss()
     learning_rate = 1e-4
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -67,7 +67,7 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
 
     print("****** begin training ******")
     num_of_epochs = 10
-    max_alowed_number_of_batches = 200  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
+    max_alowed_number_of_batches = 30  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
     # and so if this number is higher than the real number of batches - it means i will use all of the batchs for my traiining process
     # note that there are currently (030920) 120 batches - 120 batches * 25 images in each batch = 3000 images in ds_train
     num_of_batches = (len(ds_train) // batch_size)  # TODO: check this line
@@ -95,6 +95,7 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
             # TODO: check if .to(device=device) is needed in both vars (030920 test)
             if device.type == 'cuda':
                 x = x.to(device=device)  
+                y = y.float()
                 y = y.to(device=device)
             
             # Forward pass: compute predicted y by passing x to the model.
@@ -102,31 +103,17 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
             
             # TODO: check if .to(device=device) is needed in both vars (030920 test)
             if device.type == 'cuda':
+                y_pred = y_pred.float()
+                y_pred = y_pred.squeeze()
                 y_pred = y_pred.to(device=device)
-            
-            # with or without the device -
-            # y_pred = y_pred.flatten().squeeze() #TODO: this might not be needed if we have more than 1 predicted value per image
 
             # checking for same values in the predcition y_pred as in ground truth y
             y_pred_rounded = torch.round(y_pred).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
             num_of_correct_predictions_this_batch = torch.eq(y, y_pred_rounded).sum()
             num_of_correct_predictions_this_epoch += num_of_correct_predictions_this_batch
 
-            # temp print for roy's test in 030920 of  how to evaluate num of correct
-            if iteration <= 3 and batch_index == 0:
-                print(f'assert: len(y) {len(y)} == len(y_pred_rounded) {len(y_pred_rounded)}')
-                print(f'assert: y.shape {y.shape} == y_pred.shape {y_pred.shape} != == y_pred_rounded.shape {y_pred_rounded.shape}')
-                print(f'testing: y.unsqueeze(0) shape is: {y.unsqueeze(0).shape} \n')
-                print(f'testing: y.unsqueeze(1) shape is: {y.unsqueeze(1).shape} \n')
-                print(f'testing: y.unsqueeze(-1) shape is: {y.unsqueeze(-1).shape} \n')
 
-                print(f'ground truth y is: {y} \n')
-                print(f'prediction y rounded is: {y_pred_rounded} \n')
-                # print(f'prediction y not rounded is: {y_pred} \n')
-                print('\nreturn to normal')
-            # end of temp test
-
-            # Compute (and print) loss.
+            # Compute (and save) loss.
             loss = loss_fn(y_pred, y)  # todo: check order
             loss_values_list.append(loss.item())
 
@@ -146,21 +133,20 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
         #end of inner loop
         print(f'\nfinished inner loop.\n')
 
-        # # verification prints:
-        # print(f'loss_values_list len {len(loss_values_list)}')
-        # print(f'loss_values_list is {loss_values_list}')
 
         # data prints on the epoch that ended
         print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
         print(f'               average loss {np.mean(loss_values_list)}')
-        print(f'               number of correct predictions: {num_of_correct_predictions} / {batch_size*num_of_batches}')
-        total_correct_predictions_all_epochs += num_of_correct_predictions
+        print(f'               number of correct predictions: {num_of_correct_predictions_this_epoch} / {batch_size*num_of_batches}')
+        total_correct_predictions_all_epochs += num_of_correct_predictions_this_epoch
 
         # todo: do we want to keep the average loss from this epoch ?
         unused_var = np.mean(loss_values_list)
 
         
-    print(f'finished all epochs ! \nnum of total correct predicions: {total_correct_predictions} / {len(ds_train)}')
+    print(f'finished all epochs ! \nnum of total correct predicions: {total_correct_predictions_all_epochs} / {len(ds_train)}')
+
+    print(f' FINISHED TRAINING ')
 
     print("\n----- finished function runTest1 -----\n")
 
@@ -172,38 +158,6 @@ def runTest2_allGenePrediction_dimReduction_KHighestVariances(dataset : Dataset,
     print("\n----- entered function runTest2_allGenePrediction_dimReduction_KHighestVariances -----")
 
 
-    '''
-    prep our dataset and dataloaders
-    '''
-    batch_size = 25
-    split_lengths = [int(len(dataset) * 0.9), int(len(dataset) * 0.1)]  # this didnt work .... bad numbers \o/
-    split_lengths = [3000, 813]  # since there are 3813 samples overall, 3000 is about 78% of the ds
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
-    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
-
-    print(f'verify size of ds_train {len(ds_train)}')
-    print(f'verify size of ds_test {len(ds_test)}')
-    print(f'verify size of dl_train {len(dl_train)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify batch_size is {batch_size} ')
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-
-    print(dataset[0])
-    x0, y0 = dataset[0]
-    print(f'A single image\'s shape will be like x0.shape : {x0.shape}')
-    print(f'    the latent tensor (y) of that image will be of shape {y0.shape}')
-
-    # add batch dimension
-    x0 = x0.unsqueeze(0)  # ".to(device)"
-    print(f'A single image\'s shape will be like x0.shape - after unsqueeze : {x0.shape}')
-
-
-    
 
     print("\n----- finished function runTest2_allGenePrediction_dimReduction_KHighestVariances -----\n")
 
@@ -224,37 +178,6 @@ def runTest3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
     print(f'H shape {dataset.H.shape}')
     print(f'W len {len(dataset.W)}')
 
-    '''
-    prep our dataset and dataloaders
-    '''
-    batch_size = 25
-    split_lengths = [int(len(dataset) * 0.9), int(len(dataset) * 0.1)]  # this didnt work .... bad numbers \o/
-    split_lengths = [3000, 813]  # since there are 3813 samples overall, 3000 is about 78% of the ds
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
-    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
-
-    print(f'verify size of ds_train {len(ds_train)}')
-    print(f'verify size of ds_test {len(ds_test)}')
-    print(f'verify size of dl_train {len(dl_train)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify batch_size is {batch_size} ')
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-
-    max_batches = 1000000 # ?
-    x0, y0 = dataset[0]
-    print(f'A single image\'s shape will be like x0.shape : {x0.shape}')
-    print(f'    the latent tensor (y) of that image will be of shape {y0.shape}')
-
-    # add batch dimension
-    x0 = x0.unsqueeze(0)  # ".to(device)"
-    print(f'A single image\'s shape will be like x0.shape - after unsqueeze : {x0.shape}')
-
-
     
 
     print("\n----- finished function runTest3_allGenePrediction_dimReduction_NMF -----\n")
@@ -264,49 +187,9 @@ def runTest3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
 
 def runTest4_allGenePrediction_dimReduction_AutoEncoder(dataset : Dataset, device):
 
-        print("\n----- entered function runTest4_allGenePrediction_dimReduction_AutoEncoder -----")
+    print("\n----- entered function runTest4_allGenePrediction_dimReduction_AutoEncoder -----")
 
-
-    print("test printing the ds:")  
-    print(f'W len {len(dataset.W)}')
-    print(f'W type {type(dataset.W)}')
-    print(f'W shape {dataset.W.shape}')
-    print(f'H len {len(dataset.H)}')
-    print(f'H len {type(dataset.H)}')
-    print(f'H shape {dataset.H.shape}')
-    print(f'W len {len(dataset.W)}')
-
-    '''
-    prep our dataset and dataloaders
-    '''
-    batch_size = 25
-    split_lengths = [int(len(dataset) * 0.9), int(len(dataset) * 0.1)]  # this didnt work .... bad numbers \o/
-    split_lengths = [3000, 813]  # since there are 3813 samples overall, 3000 is about 78% of the ds
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
-    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
-
-    print(f'verify size of ds_train {len(ds_train)}')
-    print(f'verify size of ds_test {len(ds_test)}')
-    print(f'verify size of dl_train {len(dl_train)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify batch_size is {batch_size} ')
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-
-    max_batches = 1000000 # ?
-    x0, y0 = dataset[0]
-    print(f'A single image\'s shape will be like x0.shape : {x0.shape}')
-    print(f'    the latent tensor (y) of that image will be of shape {y0.shape}')
-
-    # add batch dimension
-    x0 = x0.unsqueeze(0)  # ".to(device)"
-    print(f'A single image\'s shape will be like x0.shape - after unsqueeze : {x0.shape}')
-
-
+    
     
 
     print("\n----- finished function runTest4_allGenePrediction_dimReduction_AutoEncoder -----\n")

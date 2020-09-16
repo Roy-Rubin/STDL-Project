@@ -160,4 +160,13 @@ def printInfoAboutImageFolderDataset(dataset_object):
 
     pass
 
-    
+
+def printInfoAboutCustomConcatanatedImageFolderDataset(dataset_object):
+    print(f'\nConcatanated dataset loaded. found {len(dataset_object)} images in dataset folder.')
+    print(f'returned object type: {type(dataset_object)}')
+    print(f'dataset_lengths_list: {dataset_object.dataset_lengths_list}')
+    print(f'index_offsets: {dataset_object.index_offsets}')
+    print(f'list_of_image_filenames len: {len(dataset_object.list_of_image_filenames)}')
+    print(f'list_of_image_filenames first few name: {dataset_object.list_of_image_filenames[0:5]}')
+
+    pass
