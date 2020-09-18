@@ -6,78 +6,33 @@ from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet
 
 
-def runTest1_singleGenePrediction(dataset : Dataset, device):
-    
-    print("\n----- entered function runTest1 -----")
-
-
+def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimizer, num_of_epochs_wanted, max_alowed_number_of_batches, device):
     '''
-    prep our dataset and dataloaders
+    preparations
     '''
-    batch_size = 25
-    train_ds_size = int(len(dataset) * 0.8)
-    test_ds_size = len(dataset) - train_ds_size
-    split_lengths = [train_ds_size, test_ds_size]  
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
-    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
-    im_size = ds_train[0][0].shape
-
-    print(f'verify size of ds_train {len(ds_train)}')
-    print(f'verify size of ds_test {len(ds_test)}')
-    print(f'verify size of dl_train {len(dl_train)}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify im_size {im_size}')
-    print(f'verify size of dl_test {len(dl_test)}')
-    print(f'verify batch_size is {batch_size} ')
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-
-    max_batches = 1000000 # ?
-    x0, _ = dataset[0]
-    print(f'A single image\'s shape will be like x0.shape : {x0.shape}')
-    # add batch dimension
-    x0 = x0.unsqueeze(0)  # ".to(device)"
-    print(f'A single image\'s shape will be like x0.shape - after unsqueeze : {x0.shape}')
-    in_size = x0.shape[1:]  # save it as only 3 parameters out of [1,3,176,176] - save as [3,176,176]
-    output_size = 1  #notes on this line:
-        # formerly known as - "out_classes". now, this will be the regression value FOR EACH SINGLE IMAGE (or so i think) #TODO: verify
-        # TODO: note that i did not yet perform in softmax or any such thing
-    channels = [32]  # these are the kernels if i remember correctly
-    hidden_dims = [100]
-    pool_every = 9999  # because of the parametes above, this practically means never ...
-    print(f'verify in_size {in_size}')
-    print(f'note - number of convolutions is supposed to be {len(channels)}')
-    print(f'note - number of (hidden) linear layers is supposed to be {len(hidden_dims)}')
-    model = ConvNet(in_size, output_size, channels=channels, pool_every=pool_every, hidden_dims=hidden_dims)
+    print("/ * \ ENTERED train_prediction_model / * \ ")
+    # for me
+    num_of_epochs = num_of_epochs_wanted
+    model = model_to_train
+    # important: load model to cuda
     if device.type == 'cuda':
-        model = model.to(device=device)  # 030920 test: added cuda
-    loss_fn = torch.nn.MSELoss()
-    learning_rate = 1e-4
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        model = model.to(device=device) 
+    # print info for user
+    print(f'recieved model {model}\nrecieved loss_fn {loss_fn}\nrecieved optimizer {optimizer}\nrecieved num_of_epochs_wanted {num_of_epochs_wanted}\nrecieved max_alowed_number_of_batches {max_alowed_number_of_batches}')
 
-    '''
-    now we can perform the test !
-    '''
-
-
-    # training loop - fourth try
-
-    print("****** begin training ******")
-    num_of_epochs = 10
-    max_alowed_number_of_batches = 30  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
-    # and so if this number is higher than the real number of batches - it means i will use all of the batchs for my traiining process
-    # note that there are currently (030920) 120 batches - 120 batches * 25 images in each batch = 3000 images in ds_train
-    num_of_batches = (len(ds_train) // batch_size)  # TODO: check this line
+    # compute actual number of batches to train on in each epoch
+    num_of_batches = (len(ds_train) // dl_train.batch_size)  # TODO: check this line
     if num_of_batches > max_alowed_number_of_batches:
+        print(f'NOTE: in order to speed up training (while damaging accuracy) the number of batches per epoch was reduced from {num_of_batches} to {max_alowed_number_of_batches}')
         num_of_batches = max_alowed_number_of_batches
 
-    # initialize variables
-    total_correct_predictions_all_epochs = 0
 
-    # note 2 loops here: external and internal
+    '''
+    BEGIN TRAINING !!!
+    # note 2 loops here: external (epochs) and internal (batches)
+    '''    
+    print("****** begin training ******")
+
     for iteration in range(num_of_epochs):
         print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
         
@@ -112,16 +67,13 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
             num_of_correct_predictions_this_batch = torch.eq(y, y_pred_rounded).sum()
             num_of_correct_predictions_this_epoch += num_of_correct_predictions_this_batch
 
-
             # Compute (and save) loss.
             loss = loss_fn(y_pred, y)  # todo: check order
             loss_values_list.append(loss.item())
 
-            # Before the backward pass, use the optimizer object to zero all of the
-            # gradients for the variables it will update (which are the learnable
-            # weights of the model). This is because by default, gradients are
-            # accumulated in buffers( i.e, not overwritten) whenever .backward()
-            # is called. Checkout docs of torch.autograd.backward for more details.
+            # Before the backward pass, use the optimizer object to zero all of the gradients for the variables it will update (which are the learnable
+            # weights of the model). This is because by default, gradients are accumulated in buffers( i.e, not overwritten) 
+            # whenever ".backward()" is called. Checkout docs of torch.autograd.backward for more details.
             optimizer.zero_grad()
 
             # Backward pass: compute gradient of the loss with respect to model parameters
@@ -137,26 +89,166 @@ def runTest1_singleGenePrediction(dataset : Dataset, device):
         # data prints on the epoch that ended
         print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
         print(f'               average loss {np.mean(loss_values_list)}')
-        print(f'               number of correct predictions: {num_of_correct_predictions_this_epoch} / {batch_size*num_of_batches}')
-        total_correct_predictions_all_epochs += num_of_correct_predictions_this_epoch
+        print(f'               number of correct predictions: {num_of_correct_predictions_this_epoch} / {dl_train.batch_size*num_of_batches}')
 
-        # todo: do we want to keep the average loss from this epoch ?
-        unused_var = np.mean(loss_values_list)
+ 
+    print(f'finished all epochs !')
+    print(" \ * / FINISHED train_prediction_model \ * / ")
+    return model
 
-        
-    print(f'finished all epochs ! \nnum of total correct predicions: {total_correct_predictions_all_epochs} / {len(ds_train)}')
 
-    print(f' FINISHED TRAINING ')
+def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device):
+    '''
+    hyperparams is a dict that should hold the following variables:
+    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
+    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
+    '''
+    ###
+    '''
+    prep our dataset and dataloaders
+    '''
+    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
+    test_ds_size = len(dataset) - train_ds_size
+    split_lengths = [train_ds_size, test_ds_size]  
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
+    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
 
-    print("\n----- finished function runTest1 -----\n")
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    x0, y0 = dataset[0]
+    in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
+    output_size = 1 if isinstance(y0, int) else y0.shape # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+    
+    # create the model
+    model = ConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'], hidden_dims=hyperparams['hidden_dims'])
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
+
+    '''
+    now we can perform the test !
+    '''
+
+    model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
+                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
+                                   device=device)
+
+    # TODO: test the model ?
+    pass
+
+
+def runExperiment1_singleGenePrediction(dataset : Dataset, device):
+    
+    print("\n----- entered function runExperiment1_singleGenePrediction -----")
+    '''
+    prep our dataset and dataloaders
+    '''
+    batch_size = 25
+    train_ds_size = int(len(dataset) * 0.8)
+    test_ds_size = len(dataset) - train_ds_size
+    split_lengths = [train_ds_size, test_ds_size]  
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
+    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    x0, _ = dataset[0]
+    in_size = x0.shape # note: if we need for some reason to add batch dimension (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
+    output_size = 1  #notes on this line:
+        # formerly known as - "out_classes". now, this will be the regression value FOR EACH SINGLE IMAGE (or so i think) #TODO: verify
+        # TODO: note that i did not yet perform in softmax or any such thing
+    channels = [32]  # these are the kernels if i remember correctly
+    num_of_convolution_layers = len(channels)
+    hidden_dims = [100]
+    num_of_hidden_layers = len(hidden_dims)
+    pool_every = 9999  # because of the parametes above, this practically means never ...
+
+    # create the model
+    model = ConvNet(in_size, output_size, channels=channels, pool_every=pool_every, hidden_dims=hidden_dims)
+    if device.type == 'cuda':
+        model = model.to(device=device)  # 030920 test: added cuda
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    learning_rate = 1e-4
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    # 
+    num_of_epochs = 5
+    max_alowed_number_of_batches = 99999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
+    # and so if this number is higher than the real number of batches - it means i will use all of the batchs for my traiining process
+    # note that there are currently (030920) 120 batches - 120 batches * 25 images in each batch = 3000 images in ds_train
+
+    '''
+    now we can perform the test !
+    '''
+
+    model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+                                   optimizer=optimizer, num_of_epochs_wanted=num_of_epochs, max_alowed_number_of_batches=max_alowed_number_of_batches)
+
+    # TODO: test the model ?
+
+    print("\n----- finished function runExperiment1_singleGenePrediction -----\n")
 
     pass
 
 
-def runTest2_allGenePrediction_dimReduction_KHighestVariances(dataset : Dataset, device):
+def runExperiment2_allGenePrediction_dimReduction_KHighestVariances(dataset : Dataset, device):
     
     print("\n----- entered function runTest2_allGenePrediction_dimReduction_KHighestVariances -----")
 
+    #TODO NOTE: IMPORTANT !!!! at the time being 15:27 in 180920 thisis just a copy of the function above, but with
+    #               output_size = K !
+
+
+    '''
+    prep our dataset and dataloaders
+    '''
+    batch_size = 25
+    train_ds_size = int(len(dataset) * 0.8)
+    test_ds_size = len(dataset) - train_ds_size
+    split_lengths = [train_ds_size, test_ds_size]  
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, batch_size, shuffle=True)
+    dl_test = DataLoader(ds_test, batch_size, shuffle=True)
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    x0, y0 = dataset[0]
+    in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
+    output_size = y0.shape # == K  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+    channels = [32]  # these are the kernels if i remember correctly
+    num_of_convolution_layers = len(channels)
+    hidden_dims = [100]
+    num_of_hidden_layers = len(hidden_dims)
+    pool_every = 9999  # because of the parametes above, this practically means never ...
+
+    # create the model
+    model = ConvNet(in_size, output_size, channels=channels, pool_every=pool_every, hidden_dims=hidden_dims)
+    if device.type == 'cuda':
+        model = model.to(device=device)  # 030920 test: added cuda
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    learning_rate = 1e-4
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    # 
+    num_of_epochs = 5
+    max_alowed_number_of_batches = 99999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
+    # and so if this number is higher than the real number of batches - it means i will use all of the batchs for my traiining process
+    # note that there are currently (030920) 120 batches - 120 batches * 25 images in each batch = 3000 images in ds_train
+
+    '''
+    now we can perform the test !
+    '''
+
+    model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+                                   optimizer=optimizer, num_of_epochs_wanted=num_of_epochs, max_alowed_number_of_batches=max_alowed_number_of_batches)
+
+    # TODO: test the model ?
 
 
     print("\n----- finished function runTest2_allGenePrediction_dimReduction_KHighestVariances -----\n")
@@ -164,7 +256,7 @@ def runTest2_allGenePrediction_dimReduction_KHighestVariances(dataset : Dataset,
     pass
 
 
-def runTest3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
+def runExperiment3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
     
     print("\n----- entered function runTest3_allGenePrediction_dimReduction_NMF -----")
 
@@ -185,7 +277,7 @@ def runTest3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
     pass
 
 
-def runTest4_allGenePrediction_dimReduction_AutoEncoder(dataset : Dataset, device):
+def runExperiment4_allGenePrediction_dimReduction_AutoEncoder(dataset : Dataset, device):
 
     print("\n----- entered function runTest4_allGenePrediction_dimReduction_AutoEncoder -----")
 
