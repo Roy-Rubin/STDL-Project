@@ -45,7 +45,8 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             # get current batch data 
             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
-            x, y = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25
+            x, y, _ = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25. 
+                            # NOTE that the third argument recieved here is "column" and is not currently needed
             
             # TODO: check if .to(device=device) is needed in both vars (030920 test)
             if device.type == 'cuda':
@@ -62,9 +63,12 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
                 y_pred = y_pred.squeeze()
                 y_pred = y_pred.to(device=device)
 
-            # checking for same values in the predcition y_pred as in ground truth y
-            y_pred_rounded = torch.round(y_pred).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
-            num_of_correct_predictions_this_batch = torch.eq(y, y_pred_rounded).sum()
+            # checking for same values in the predcition y_pred as in ground truth y:
+            # first, flatten the vectors, and ROUND THE VALUES ! NOTE !!!!!
+            y_pred_rounded_flattened = torch.round(y_pred).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
+            y_rounded_flattened = torch.round(y).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
+            # print(f'--delete-- y.shape {y.shape}, y_pred.shape {y_pred.shape}, y_pred_rounded.shape {y_pred_rounded.shape}')
+            num_of_correct_predictions_this_batch = torch.eq(y_rounded_flattened, y_pred_rounded_flattened).sum()
             num_of_correct_predictions_this_epoch += num_of_correct_predictions_this_batch
 
             # Compute (and save) loss.
@@ -97,13 +101,13 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
     return model
 
 
-def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device):
+def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device, dataset_name):
     '''
     hyperparams is a dict that should hold the following variables:
     batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
     channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
     '''
-    ###
+    print("\n----- entered function runExperimentWithModel_BasicConvNet -----")
     '''
     prep our dataset and dataloaders
     '''
@@ -117,9 +121,9 @@ def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device):
     '''
     prepare model, loss and optimizer instances
     '''
-    x0, y0 = dataset[0]
+    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
     in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
-    output_size = 1 if isinstance(y0, int) else y0.shape # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+    output_size = 1 if isinstance(y0, int) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
     
     # create the model
     model = ConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'], hidden_dims=hyperparams['hidden_dims'])
@@ -137,10 +141,124 @@ def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device):
                                    device=device)
 
     # TODO: test the model ?
+    '''
+    perform  an experiment to check the dimensionality restoration
+    '''
+    if dataset_name == 'NMF':
+        runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
+        pass
+    elif dataset_name == 'AE':
+        runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
+        pass
+    else:
+        # if we get here, this is not NMF or AE, and do nothing for now
+        pass
+
+    print("\n----- finished function runExperimentWithModel_BasicConvNet -----")
+    
+    #temporary ?
+    return model  #TODO: have to decide if the model should be returned or not ....
+    
+
+def runDimensionalityRestorationExperiment_with_NMF_DS(dataset : Dataset, model, device):
+    '''
+    '''
+    print("\n----- entered function runDimensionalityRestorationExperiment_with_NMF_DS -----")
+
+    # Verification of W,H matrices
+    print("Verification of W,H matrices:")  
+    print(f'W len {len(dataset.W)}')
+    print(f'W type {type(dataset.W)}')
+    print(f'W shape {dataset.W.shape}')
+    print(f'H len {len(dataset.H)}')
+    print(f'H len {type(dataset.H)}')
+    print(f'H shape {dataset.H.shape}')
+    print(f' and so: W*H = {dataset.W.shape}*{dataset.H.shape} should give us the right format')
+
+    '''
+    # take an image, run it through the model, restore its dimensions, and compare it to the original vecotr from the dataset
+    '''
+    x0, y0, column = dataset[0]
+    x0 = x0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
+    y0 = y0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
+    y0_pred = model(x0)  # NOTE: assumption: model was already uploaded to cuda when it was trained
+    
+    '''
+    restore dimension to y0_pred by performing: res =      W * y_pred 
+                                                 (33538 x K) * (K * num_of_images)
+    '''
+    # both vecotors need a little preparation for the multiplication
+    y0_pred_prepared = y0_pred.t().to(device=device) #note the transpose here !
+    W_prepared = torch.from_numpy(dataset.W).float().to(device=device)
+
+    # print(f'--delete-- verify: W_prepared.shape {W_prepared.shape}, y0_pred_prepared.shape {y0_pred_prepared.shape}')
+
+    y0_pred_all_dims = torch.mm(W_prepared, y0_pred_prepared)  
+
+    # print(f'--delete-- verify: x0.shape {x0.shape}, y0.shape {y0.shape}, y0_pred.shape {y0_pred.shape}, y0_pred_all_dims.shape {y0_pred_all_dims.shape}')
+
+    y0_ground_truth_all_dims = dataset.matrix_dataframe.iloc[:, column].to_numpy()  # this is the full 33538 dimensional vector (or 23000~ after reduction) from the original dataframe
+
+    # # trick to get num of identical elements between 2 NUMPY arrays 
+    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension; and both vectors needs rounding to closest int (using np.rint)
+    y0_groundtruth_prepared = np.rint(y0_ground_truth_all_dims)
+    y0_pred_prepared = np.rint(y0_pred_all_dims.squeeze().cpu().detach().numpy())   # np.squeeze(np.rint(y0_pred_all_dims.cpu().detach().numpy()))
+
+    # print(f'--delete-- verify:  y0_pred_prepared shape {y0_pred_prepared.shape} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared.shape}')
+    # print(f'--delete-- verify:  y0_pred_prepared {y0_pred_prepared} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared}')
+
+    # assert y0_groundtruth_prepared == y0_pred_prepared.shape  # check if needed
+    number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
+                                                                                                      # note that "y0_pred_all_dims" needs to be copied from cuda to cpu in order to use numpy                                                                                                  
+
+    print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
+
+
+    print("\n----- finished function runDimensionalityRestorationExperiment_with_NMF_DS -----\n")
+
     pass
 
 
-def runExperiment1_singleGenePrediction(dataset : Dataset, device):
+def runDimensionalityRestorationExperiment_with_AE_DS(dataset : Dataset, model, device):
+    '''
+    '''
+    print("\n----- entered function runDimensionalityRestorationExperiment_with_AE_DS -----")
+
+    '''
+    # take an image, run it through the model, restore its dimensions, and compare it to the original vecotr from the dataset
+    '''
+    # note that since this is a small test over 1 image, i dont copy to cuda, and i need to unsqueeze x0 and y0 to get their batch dim
+    x0, y0, column = dataset[0]
+    x0 = x0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
+    y0 = y0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
+    y0_pred = model(x0)  # NOTE: assumption: model was already uploaded to cuda when it was trained
+    # restore dimension to y0_pred by using the decoder (from our pre-trained autoencoder)
+    y0_pred_all_dims = dataset.autoEncoder.decodeWrapper(y0_pred)
+
+    # print(f'--delete-- verify: x0.shape {x0.shape}, y0.shape {y0.shape}, y0_pred.shape {y0_pred.shape}, y0_pred_all_dims.shape {y0_pred_all_dims.shape}')
+
+    y0_ground_truth_all_dims = dataset.matrix_dataframe.iloc[:, column].to_numpy()  # this is the full 33538 dimensional vector (or 23000~ after reduction) from the original dataframe
+
+    # # trick to get num of identical elements between 2 NUMPY arrays 
+    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension; and both vectors needs rounding to closest int (using np.rint)
+    y0_groundtruth_prepared = np.rint(y0_ground_truth_all_dims)
+    y0_pred_prepared = np.rint(y0_pred_all_dims.squeeze().cpu().detach().numpy())   # np.squeeze(np.rint(y0_pred_all_dims.cpu().detach().numpy()))
+
+    # print(f'--delete-- verify:  y0_pred_prepared shape {y0_pred_prepared.shape} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared.shape}')
+    # print(f'--delete-- verify:  y0_pred_prepared {y0_pred_prepared} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared}')
+
+    # assert y0_groundtruth_prepared == y0_pred_prepared.shape  # check if needed
+    number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
+                                                                                                      # note that "y0_pred_all_dims" needs to be copied from cuda to cpu in order to use numpy                                                                                                  
+
+    print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
+
+    print("\n----- finished function runDimensionalityRestorationExperiment_with_AE_DS -----\n")
+
+    pass
+
+
+def runExperiment1_singleGenePrediction(dataset : Dataset, device):  # NOTE: TODO: this might be outdated - if so, delete it !
     
     print("\n----- entered function runExperiment1_singleGenePrediction -----")
     '''
@@ -196,7 +314,6 @@ def runExperiment1_singleGenePrediction(dataset : Dataset, device):
     pass
 
 
-def runExperiment2_allGenePrediction_dimReduction_KHighestVariances(dataset : Dataset, device):
     
     print("\n----- entered function runTest2_allGenePrediction_dimReduction_KHighestVariances -----")
 
@@ -256,7 +373,6 @@ def runExperiment2_allGenePrediction_dimReduction_KHighestVariances(dataset : Da
     pass
 
 
-def runExperiment3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device):
     
     print("\n----- entered function runTest3_allGenePrediction_dimReduction_NMF -----")
 
@@ -276,14 +392,3 @@ def runExperiment3_allGenePrediction_dimReduction_NMF(dataset : Dataset, device)
 
     pass
 
-
-def runExperiment4_allGenePrediction_dimReduction_AutoEncoder(dataset : Dataset, device):
-
-    print("\n----- entered function runTest4_allGenePrediction_dimReduction_AutoEncoder -----")
-
-    
-    
-
-    print("\n----- finished function runTest4_allGenePrediction_dimReduction_AutoEncoder -----\n")
-
-    pass

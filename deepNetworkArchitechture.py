@@ -11,8 +11,7 @@ class ConvNet(nn.Module):
     [(CONV -> ReLU)*P -> MaxPool]*(N/P) -> (Linear -> ReLU)*M -> Linear
     """
 
-    def __init__(self, in_size, out_classes: int, channels: list,
-                 pool_every: int, hidden_dims: list):
+    def __init__(self, in_size, out_classes: int, channels: list, pool_every: int, hidden_dims: list):
         """
         :param in_size: Size of input images, e.g. (C,H,W).
         :param out_classes: Number of classes to output in the final layer.
@@ -38,13 +37,11 @@ class ConvNet(nn.Module):
         in_channels, in_h, in_w = tuple(self.in_size)  # C,H,W
 
         layers = []
-        # TODO: Create the feature extractor part of the model:
-        #  [(CONV -> ReLU)*P -> MaxPool]*(N/P)
-        #  Use only dimension-preserving 3x3 convolutions. Apply 2x2 Max
-        #  Pooling to reduce dimensions after every P convolutions.
-        #  Note: If N is not divisible by P, then N mod P additional
-        #  CONV->ReLUs should exist at the end, without a MaxPool after them.
+
         '''
+
+        [(CONV -> ReLU)*P -> MaxPool]*(N/P)
+
         N is the total number of convolutional layers,
         P specifies how many convolutions to perform before each pooling layer
 
@@ -76,15 +73,12 @@ class ConvNet(nn.Module):
         in_channels, in_h, in_w, = tuple(self.in_size)
 
         layers = []
-        # TODO: Create the classifier part of the model:
-        #  (Linear -> ReLU)*M -> Linear
-        #  You'll first need to calculate the number of features going in to
-        #  the first linear layer.
-        #  The last Linear layer should have an output dim of out_classes.
-
-        # ====== YOUR CODE: ======
 
         '''
+        #  (Linear -> ReLU)*M -> Linear
+        #  we first need to calculate the number of features going in to the first linear layer.
+        #  The last Linear layer has an output dim of out_classes.
+
         Note: 
         every convolution layer - could technically reduce the image size - but it will not because of the parameters we chose for Conv2d.
         FURTHERMORE: the number of channels in each layer, is a function ONLY of the number of filters (= the number of kernels)  
@@ -117,31 +111,16 @@ class ConvNet(nn.Module):
             curr_channels = self.hidden_dims[i]
 
         layers.append(nn.Linear(in_features=self.hidden_dims[M - 1], out_features=self.out_classes))
-
-        # ========================
+        # 
         seq = nn.Sequential(*layers)
         return seq
 
     def forward(self, x):
-        # TODO: Implement the forward pass.
-        #  Extract features from the input, run the classifier on them and
-        #  return class scores.
-        # ====== YOUR CODE: ======
-        # features_seq = self.feature_extractor()
-        # classifier_seq = self.classifier()
 
-        '''
-        ## input image: 1,3,32,32   ->>> after convolutions: 1,32,new,new
-        ## features dimensions are: (num of inputs, num of channels, hight, width)  == 4 dimensions
-        ## classifier needs 2 dimensions (num of inputs, num of feature)  == 2 dimensions
-        ## so we need to transform:  (num of inputs, num of channels*hight*width)
-         ## features_flattened size is 1,20000
-        '''
         features = self.feature_extractor(input=x)
         features_flattened = features.view(features.size(0), -1)  # -1 means inferring from other dimensions
-        out = self.classifier(features_flattened)  # out is the class scores
+        out = self.classifier(features_flattened)  
 
-        # ========================
         return out
 
 

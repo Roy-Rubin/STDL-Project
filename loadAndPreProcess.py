@@ -374,7 +374,7 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         # for me
         y = current_gene_expression_value
 
-        return X, y
+        return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that this y value belongs to
 
 
 class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Dataset):
@@ -405,9 +405,11 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
 
         # df.nlargest - This method is equivalent to df.sort_values(columns, ascending=False).head(n), but more performant.
         nlargest_variance_df = variance_df.nlargest(n=num_of_dims_k, columns=['variance'], keep='all')
-        # now use the indexes recieved above to retrieve the columns with the highest variance
+        # now use the indexes recieved above to retrieve the entries with the highest variance
         list_of_nlargest_indices = list(nlargest_variance_df.index.values) 
-
+        # save it for future reference
+        self.list_of_nlargest_indices = list_of_nlargest_indices
+        # save 
         self.reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns         
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
@@ -457,10 +459,12 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
 
         # for me
         y = current_gene_expression_values
+        # convert to a tensor
+        y = torch.from_numpy(y.to_numpy()).float()  # assumption: currently "y" is a pandas series (\dataframe) slice, and needs to be converted to a tensor for later usage
         assert (len(y) == self.num_of_dims_k)
         # TODO: check: currently y is a numpy ndarray type. does it need to be switched to a tensor type ??? <-----------------------------------
 
-        return X, y
+        return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
 
 
 class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
@@ -513,7 +517,7 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
         :return:
         '''
 
-        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+        if hasattr(self.imageFolder, 'samples'):  # if the image folder has a field called "samples", it means that this is a regular "ImageFolder" type
             curr_filename = self.imageFolder.samples[index][0]
             curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
         else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
@@ -541,10 +545,12 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
 
         # for me
         y = current_k_dim_vector
+        # convert to a tensor
+        y = torch.from_numpy(y.to_numpy()).float()  # assumption: currently "y" is a pandas series (\dataframe) slice, and needs to be converted to a tensor for later usage
         assert (len(y) == self.num_of_dims_k)
         # TODO: check: currently y is a numpy ndarray type. does it need to be switched to a tensor type ??? <-----------------------------------
 
-        return X, y
+        return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
 
 
 class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Dataset):
@@ -628,7 +634,7 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         assert (len(y) == self.num_of_dims_k)
         # TODO: check: currently y is a numpy ndarray type. does it need to be switched to a tensor type ??? <-----------------------------------
 
-        return X, y
+        return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
 
 
     def return_trained_AE_net(self, in_features, z_dim, device):
@@ -653,11 +659,6 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         dataloader = DataLoader(dataset, batch_size, shuffle=True)
         x0 = dataset[0]
         num_of_features = len(x0)
-        # print(f'verify size of dataset {len(dataset)}')
-        # print(f'verify size of dataloader {len(dataloader)}')
-        # print(f'verify batch_size is {batch_size} ')
-        # print(f'verify x0.shape : {x0.shape}')
-        # print(f'verify num_of_features : {num_of_features}')
 
         '''
         prepare model, loss and optimizer instances
@@ -671,7 +672,7 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         if device.type == 'cuda':
             model = model.to(device=device)  # 030920 test: added cuda
         
-        #
+        # loss and optimizer
         loss_fn = torch.nn.MSELoss()
         learning_rate = 1e-4  #TODO: need to play with this value ....
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -682,11 +683,10 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
 
         print("****** begin training ******")
         num_of_epochs = 3  # TODO: this number was lowered since i dont have alot of time to play around :)
-        max_alowed_number_of_batches = 2000  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
-        # and so if this number is higher than the real number of batches - it means i will use all of the batchs for my traiining process
-        # note that there are currently (030920) 120 batches - 120 batches * 25 images in each batch = 3000 images in ds_train
+        max_alowed_number_of_batches = 999999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
         num_of_batches = (len(dataset) // batch_size)  # TODO: check this line
         if num_of_batches > max_alowed_number_of_batches:
+            print(f'NOTE: in order to speed up training (while damaging accuracy) the number of batches per epoch was reduced from {num_of_batches} to {max_alowed_number_of_batches}')
             num_of_batches = max_alowed_number_of_batches
 
 
@@ -750,6 +750,10 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
 
 
 class STDL_Dataset_matrix_df_for_AE_init(torch.utils.data.Dataset):
+    '''
+    This dataset holds information about the matrix dataframe, and will be used for the initialization
+    of the autoencoder network inside of "STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder".
+    '''
     def __init__(self, matrix_df):
         self.data = matrix_df.to_numpy()
         print(f'--delete-- verify inside STDL_Dataset_matrix_df_for_AE_init __init__: self.data.shape: {self.data.shape}')
@@ -767,6 +771,7 @@ class STDL_Dataset_matrix_df_for_AE_init(torch.utils.data.Dataset):
 
 class STDL_ConcatDataset_of_ImageFolders(torch.utils.data.Dataset):
     '''
+    This is a concatanation of ImageFolder datasets into one unified dataset. 
     NOTE: the assumption is that the list of datastes recieved as input for the __init__ method are all "ImageFolder", and all have the same size
                 but different transformations
     '''
