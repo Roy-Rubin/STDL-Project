@@ -104,7 +104,8 @@ def load_dataset_from_images_folder(path_to_images):
 
 def load_augmented_imageFolder_DS_from_images_folder(path_to_images):
     '''
-    NOTE: 
+    NOTE: dont freak out from the large amount of code, most of this function is transformations that are "copy-pasted" with slight differences.
+          There are overall 8 differnt transformation - 0/90/180/270 , and the same four flipped horizontaly
     '''
     print("\n----- entered function load_dataset_from_pictures_folder -----")
 
@@ -169,9 +170,75 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images):
 
     dataset_object_270 = ImageFolder(os.path.dirname(path_to_images), tf_rotated_270)
 
+        # note that this next "compose" actually a pipeline
+    tf_original_flipped =   torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # flip horizontaly (p=1 == probability for flipping is 1 == always flip)
+                    torchTransform.RandomHorizontalFlip(p=1),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_original_flipped = ImageFolder(os.path.dirname(path_to_images), tf_original)
+
+    # note that this next "compose" actually a pipeline
+    tf_rotated_90_flipped = torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # flip horizontaly (p=1 == probability for flipping is 1 == always flip)
+                    torchTransform.RandomHorizontalFlip(p=1),
+                    # Rotate image:
+                    # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
+                    torchTransform.RandomRotation((90,90)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_90_flipped = ImageFolder(os.path.dirname(path_to_images), tf_rotated_90)
+
+    # note that this next "compose" actually a pipeline
+    tf_rotated_180_flipped = torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # flip horizontaly (p=1 == probability for flipping is 1 == always flip)
+                    torchTransform.RandomHorizontalFlip(p=1),
+                    # Rotate image:
+                    # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
+                    torchTransform.RandomRotation((180,180)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_180_flipped = ImageFolder(os.path.dirname(path_to_images), tf_rotated_180)
+
+    # note that this next "compose" actually a pipeline
+    tf_rotated_270_flipped = torchTransform.Compose([
+                    # Resize to constant spatial dimensions
+                    torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # flip horizontaly (p=1 == probability for flipping is 1 == always flip)
+                    torchTransform.RandomHorizontalFlip(p=1),
+                    # Rotate image:
+                    # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
+                    torchTransform.RandomRotation((270,270)),
+                    # PIL.Image -> torch.Tensor
+                    torchTransform.ToTensor(),
+                    # Dynamic range [0,1] -> [-1, 1]
+                    torchTransform.Normalize(mean=(.5, .5, .5), std=(.5, .5, .5)),
+    ])
+
+    dataset_object_270_flipped = ImageFolder(os.path.dirname(path_to_images), tf_rotated_270)
+
     # now that we finished creating the datasets, we will create a huge new dataset. 
     # important premise - in all roatations, image names remain the same. this is important because this is our mapping to our gene expression values from matrix_dataframe
-    datasets_to_concatanate = [dataset_object_original, dataset_object_90, dataset_object_180, dataset_object_270]
+    datasets_to_concatanate = [dataset_object_original, dataset_object_90, dataset_object_180, dataset_object_270,
+                                dataset_object_original_flipped, dataset_object_90_flipped, dataset_object_180_flipped, dataset_object_270_flipped]
     final_dataset_object = STDL_ConcatDataset_of_ImageFolders(datasets_to_concatanate)
 
 
@@ -301,6 +368,62 @@ def cut_empty_genes(orig_df):
         return X, y
 
 
+def cut_genes_with_under_B_counts(orig_df, Base_value):
+    '''
+    recieve a matrix df, cut all  genes with under Base_value counts in the original matrix_dataframe 
+    == keep all genes with over Base_value counts
+    return: 1. the reduced dataframe
+            2. indices of all rows that were kept (for research purpose later on)
+
+    assumption: genes (features) are the rows of the df, samples are the columns
+    '''
+    print(f'cutting all genes (rows) that contain only zeros ...')
+    # trick from stack overflow to keep all rows that have at least one nonzero value
+    reduced_df = orig_df[orig_df.sum(axis=1) > Base_value]
+    indices_of_kept_rows = list(reduced_df.index.values)
+    reduced_df = reduced_df.reset_index()  # this causes a new column to appear
+    reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
+    mapping = reduced_df[["original_index_from_matrix_dataframe"]]
+    reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
+
+    # # print information if requested by user
+    # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
+    # no = {'no','n','NO','N'}
+    # # get input from user
+    # choice = input("Do you wish to print information about the reduced dataframe ? [yes/no]")  
+    # if choice in yes:
+    #     projectUtilities.printInfoAboutReducedDF(reduced_df)
+    # elif choice in no:
+    #     pass
+    # else:
+    #     print("since you did not input a yes, thats a no :)")
+
+    projectUtilities.printInfoAboutReducedDF(reduced_df)
+
+    # return 
+    return reduced_df, mapping 
+
+
+def perform_log_1p_normalization(df):
+    '''
+    perform log 1P normaliztion on the matrix values:
+    note that the original dataframe contains "count" values (integers from 0 to max value)
+    the transformation of a single value will be as follows:
+    (step 1) add +1 to each entry
+    (step 2) perform a log transformation for each entry
+
+    according to numpy: 
+    > Return the natural logarithm of one plus the input array, element-wise.
+    > Calculates log(1 + x).
+    '''
+    print(f'performing log1P transformation of the dataframe ...\n')
+    # step 1 and 2 combined
+    df_normalized = df.apply(np.log1p)
+    # # print if wanted
+    # projectUtilities.printInfoAboutReducedDF(df_normalized)
+    return df_normalized
+
+
 class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
     '''
 
@@ -310,7 +433,7 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
 
     '''
 
-    def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, chosen_gene_name):
+    def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, chosen_gene_name, index_mapping):
         print("\n----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----")
 
         # just in case:
@@ -320,6 +443,7 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
         self.gene_name = chosen_gene_name
+        self.index_mapping = index_mapping
 
         print("\n----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----\n")
 
@@ -334,12 +458,8 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         # Select sample
 
         Task: attach the y value of a single img
-
-        :param index:
-        :return:
         '''
-
-
+        ## get information about the image depending on the object type
         if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
             curr_filename = self.imageFolder.samples[index][0]
             curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
@@ -349,24 +469,29 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         # for me
         X = curr_img_tensor  # this is actually X_i
 
-        #
+        # get the sample's name from its absolute path and file name
         curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get all
         # before the first _ , second partition to get everything after \\images\\
-        # TODO: note that \\images\\  might apply for windows addresses only... !?
+        # NOTE: note that \\images\\  might apply for windows addresses only... !?
         #                 /images/  is in LINUX !!!!!!
 
         # get the y value's COLUMN in the gene expression matrix MTX (with help from the barcodes df)
         output_indices_list = self.barcodes_datafame.index[self.barcodes_datafame['barcodes'] == curr_sample_name].tolist()
-        # assert (len(output_indices_list) == 1) # TODO: check if this is needed
         curr_sample_name_index_in_barcoes_df = output_indices_list[0]
         column = curr_sample_name_index_in_barcoes_df
 
         # get the y value's ROW in the gene expression matrix MTX (with help from the features df)
-        output_indices_list = self.features_dataframe.index[
-            self.features_dataframe['gene_names'] == self.gene_name].tolist()
+        output_indices_list = self.features_dataframe.index[self.features_dataframe['gene_names'] == self.gene_name].tolist()
         assert (len(output_indices_list) == 1)
         curr_gene_name_index_in_features_df = output_indices_list[0]
-        row = curr_gene_name_index_in_features_df
+        row_in_original_dataframe = curr_gene_name_index_in_features_df
+        
+        # this row number needs to be transformed with the mapping because some rows were deleted
+        row = self.index_mapping.index[self.index_mapping['original_index_from_matrix_dataframe'] == row_in_original_dataframe].tolist() # there should be only one of these
+        assert (len(row) == 1)
+        row = row[0]  # list of size 1
+        # verify that the recieved gene name's row number wasnt deleted in `cut_genes_with_under_B_counts` function
+        assert len(self.matrix_dataframe.index.values) >= row
 
         # finally, get the y value from the gene expression matrix MTX
         current_gene_expression_value = self.matrix_dataframe.iloc[row, column]
@@ -756,7 +881,6 @@ class STDL_Dataset_matrix_df_for_AE_init(torch.utils.data.Dataset):
     '''
     def __init__(self, matrix_df):
         self.data = matrix_df.to_numpy()
-        print(f'--delete-- verify inside STDL_Dataset_matrix_df_for_AE_init __init__: self.data.shape: {self.data.shape}')
         self.num_of_samples = len(matrix_df.columns)
         self.num_of_features = len(matrix_df.index)
 

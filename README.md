@@ -7,6 +7,7 @@
 
 ## Table of Contents
 - [Abstract](#Abstract)
+- [Contents-of-the-repository](#Contents-of-the-repository)
 - [Requirements](#Requirements)
 - [How-to-use](#How-to-use)
 - [FAQ](#FAQ)
@@ -27,13 +28,41 @@
         - Performed with dimensionality reduction technique: `non-negative matrix factorization (NMF)`
         - Performed with dimensionality reduction technique: `autoencoder deep neural network (AE)`
 
+## Contents-of-the-repository
+
+> File: `loadAndPreProcess.py`. contains ...
+
+> File: `executionModule.py`. contains ...
+
+> File: `deepNetworkArchitechture.py`. contains ...
+
+> File: `projectUtilities.py`. contains ...
+
+> File: `STDL_notebook2.ipynb`. contains ...
+
+> anythin else - needs to be deleted !!!!! TODO !!!!!!!!!!!!
+
+
 ## Requirements
+
+> note that this is what i had on my computation node while performing the experiments
 
 - python
 - pytorch
 - sklearn
-- pandas
-- numpy
+- pandas=1.0.4
+- numpy=1.18.5
+- torchvision
+Python 3.7.6
+numpy==1.18.5
+pandas==1.0.4
+scikit-image==0.17.2
+scikit-learn==0.23.1
+scipy==1.4.1
+torch = 1.3.0
+torchvision == 0.4.1a0+d94043a
+Pillow==7.2.0
+matplotlib==3.2.1
 
 ## How-to-use
 

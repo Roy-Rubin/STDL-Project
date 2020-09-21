@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import random_split
+import torchvision
 import numpy as np
 from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet
@@ -8,17 +9,21 @@ from deepNetworkArchitechture import ConvNet
 
 def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimizer, num_of_epochs_wanted, max_alowed_number_of_batches, device):
     '''
-    preparations
+    This is the main function for training our models.
     '''
     print("/ * \ ENTERED train_prediction_model / * \ ")
+    '''
+    preparations
+    '''
     # for me
     num_of_epochs = num_of_epochs_wanted
     model = model_to_train
     # important: load model to cuda
     if device.type == 'cuda':
         model = model.to(device=device) 
-    # print info for user
-    print(f'recieved model {model}\nrecieved loss_fn {loss_fn}\nrecieved optimizer {optimizer}\nrecieved num_of_epochs_wanted {num_of_epochs_wanted}\nrecieved max_alowed_number_of_batches {max_alowed_number_of_batches}')
+    
+    # print info for user:
+    # print(f'recieved model {model}\nrecieved loss_fn {loss_fn}\nrecieved optimizer {optimizer}\nrecieved num_of_epochs_wanted {num_of_epochs_wanted}\nrecieved max_alowed_number_of_batches {max_alowed_number_of_batches}')
 
     # compute actual number of batches to train on in each epoch
     num_of_batches = (len(ds_train) // dl_train.batch_size)  # TODO: check this line
@@ -39,7 +44,6 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
         # init variables for external loop
         dl_iter = iter(dl_train)  # iterator over the dataloader. called only once, outside of the loop, and from then on we use next() on that iterator
         loss_values_list = []
-        num_of_correct_predictions_this_epoch = 0
 
         for batch_index in range(num_of_batches):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
@@ -68,8 +72,6 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             y_pred_rounded_flattened = torch.round(y_pred).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
             y_rounded_flattened = torch.round(y).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
             # print(f'--delete-- y.shape {y.shape}, y_pred.shape {y_pred.shape}, y_pred_rounded.shape {y_pred_rounded.shape}')
-            num_of_correct_predictions_this_batch = torch.eq(y_rounded_flattened, y_pred_rounded_flattened).sum()
-            num_of_correct_predictions_this_epoch += num_of_correct_predictions_this_batch
 
             # Compute (and save) loss.
             loss = loss_fn(y_pred, y)  # todo: check order
@@ -90,13 +92,13 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             del x, y, y_pred
 
         #end of inner loop
-        print(f'\nfinished inner loop.\n')
+        print(f'\nfinished inner loop.')
 
 
         # data prints on the epoch that ended
-        print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
-        print(f'               average loss {np.mean(loss_values_list)}')
-        print(f'               number of correct predictions: {num_of_correct_predictions_this_epoch} / {dl_train.batch_size*num_of_batches}')
+        # print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
+        # print(f'               average loss {np.mean(loss_values_list)}')
+        print(f'in this epoch: average loss {np.mean(loss_values_list)}')
 
  
     print(f'finished all epochs !')
@@ -126,7 +128,7 @@ def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device, 
     '''
     x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
     in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
-    output_size = 1 if isinstance(y0, int) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
     
     # create the model
     model = ConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'], hidden_dims=hyperparams['hidden_dims'])
@@ -165,6 +167,160 @@ def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device, 
     del model
     pass
     
+
+def runExperimentWithModel_DenseNet121(dataset : Dataset, hyperparams, device, dataset_name):
+    '''
+    hyperparams is a dict that should hold the following variables:
+    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
+    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
+    '''
+    print("\n----- entered function runExperimentWithModel_DenseNet121 -----")
+    '''
+    prep our dataset and dataloaders
+    '''
+    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
+    test_ds_size = len(dataset) - train_ds_size
+    split_lengths = [train_ds_size, test_ds_size]  
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
+    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
+    
+    # create the model from an existing architechture
+    # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+    model = torchvision.models.densenet121(pretrained=False)
+
+    # update the exisiting model's last layer
+    input_size = model.classifier.in_features
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+                                                            # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
+    model.classifier = torch.nn.Linear(input_size, output_size, bias=True)
+    model.classifier.weight.data.zero_()
+    model.classifier.bias.data.zero_()
+
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate']) #TODO: add momentum to hyperparams dict in the notebook.
+                                                                                                                    #TODO: in the paper momentum is 0.9 and lr is 1e-6 (1x10^-6)
+
+    '''
+    now we can perform the test !
+    '''
+
+    # TODO: NOTE: actuall training loop from the code of the original paper can be found here:
+    # https://github.com/bryanhe/ST-Net/blob/master/stnet/cmd/run_spatial.py
+    # starting from line 243
+
+    train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
+                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
+                                   device=device)
+                                   
+
+    # # TODO: test the model ?
+    # '''
+    # perform  an experiment to check the dimensionality restoration
+    # '''
+    # if dataset_name == 'NMF':
+    #     runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
+    #     pass
+    # elif dataset_name == 'AE':
+    #     runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
+    #     pass
+    # else:
+    #     # if we get here, this is not NMF or AE, and do nothing for now
+    #     pass
+
+    print("\n----- finished function runExperimentWithModel_DenseNet121 -----")
+    
+    #temporary ?
+    # return model  #TODO: have to decide if the model should be returned or not .... if not return: NOTE: delete the model from GPU !!
+    # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
+    del model
+    pass
+
+
+def runExperimentWithModel_InceptionV3(dataset : Dataset, hyperparams, device, dataset_name):
+    '''
+    hyperparams is a dict that should hold the following variables:
+    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
+    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
+    '''
+    print("\n----- entered function runExperimentWithModel_InceptionV3 -----")
+    '''
+    prep our dataset and dataloaders
+    '''
+    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
+    test_ds_size = len(dataset) - train_ds_size
+    split_lengths = [train_ds_size, test_ds_size]  
+    ds_train, ds_test = random_split(dataset, split_lengths)
+    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
+    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
+    
+    # create the models
+    # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+    print(f'starting to load the model inception_v3 from torchvision.models. this is quite heavy, and might take some time ...')
+    model = torchvision.models.inception_v3(pretrained=False) 
+    print(f'finished loading model')
+
+    # update the existing models laster layer
+    inputs = model.fc.in_features
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+                                                            # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
+    model.fc = torch.nn.Linear(inputs, output_size, bias=True)
+    model.fc.weight.data.zero_()
+    model.fc.bias.data.zero_()
+
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate']) #TODO: add momentum to hyperparams dict in the notebook.
+                                                                                                                    #TODO: in the paper momentum is 0.9 and lr is 1e-6 (1x10^-6)
+
+    '''
+    now we can perform the test !
+    '''
+
+    # TODO: NOTE: actuall training loop from the code of the original paper can be found here:
+    # https://github.com/bryanhe/ST-Net/blob/master/stnet/cmd/run_spatial.py
+    # starting from line 243
+
+    train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
+                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
+                                   device=device)
+                                   
+
+    # # TODO: test the model ?
+    # '''
+    # perform  an experiment to check the dimensionality restoration
+    # '''
+    # if dataset_name == 'NMF':
+    #     runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
+    #     pass
+    # elif dataset_name == 'AE':
+    #     runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
+    #     pass
+    # else:
+    #     # if we get here, this is not NMF or AE, and do nothing for now
+    #     pass
+
+    print("\n----- finished function runExperimentWithModel_InceptionV3 -----")
+    
+    #temporary ?
+    # return model  #TODO: have to decide if the model should be returned or not .... if not return: NOTE: delete the model from GPU !!
+    # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
+    del model
+    pass
+
 
 def runDimensionalityRestorationExperiment_with_NMF_DS(dataset : Dataset, model, device):
     '''
@@ -262,168 +418,3 @@ def runDimensionalityRestorationExperiment_with_AE_DS(dataset : Dataset, model, 
     print("\n----- finished function runDimensionalityRestorationExperiment_with_AE_DS -----\n")
 
     pass
-
-
-def runExperimentWithModel_STNet_DenseNet121(dataset : Dataset, hyperparams, device, dataset_name):
-    '''
-    hyperparams is a dict that should hold the following variables:
-    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
-    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
-    '''
-    print("\n----- entered function runExperimentWithModel_BasicConvNet -----")
-    '''
-    prep our dataset and dataloaders
-    '''
-    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
-    test_ds_size = len(dataset) - train_ds_size
-    split_lengths = [train_ds_size, test_ds_size]  
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
-    in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
-    output_size = 1 if isinstance(y0, int) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-    
-    # create the models
-    # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
-    model = torchvision.models.densenet121(pretrained=False) # TODO: not sure if this should be true or false ...
-    stnet.utils.nn.set_out_features(model, outputs) # performs operation inplace #TODO: what is the "outputs" ?
-    '''
-    original code from github to determine the outputs above:
-    # Find number of required outputs
-        if args.task == "tumor":
-            outputs = 2
-        elif args.task == "gene":
-            outputs = train_dataset[0][2].shape[0]
-        elif args.task == "geneb":
-            outputs = 2 * train_dataset[0][2].shape[0]
-        elif args.task == "count":
-            outputs = 1
-    '''
-
-    # create the loss function and optimizer
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate'], momentum=hyperparams['momentum']) #TODO: add momentum to hyperparams dict in the notebook.
-                                                                                                                    #TODO: in the paper momentum is 0.9 and lr is 1e-6 (1x10^-6)
-
-    '''
-    now we can perform the test !
-    '''
-
-    # TODO: NOTE: actuall training loop from the code of the original paper can be found here:
-    # https://github.com/bryanhe/ST-Net/blob/master/stnet/cmd/run_spatial.py
-    # starting from line 243
-
-    train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
-                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
-                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
-                                   device=device)
-                                   
-
-    # TODO: test the model ?
-    '''
-    perform  an experiment to check the dimensionality restoration
-    '''
-    if dataset_name == 'NMF':
-        runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
-        pass
-    elif dataset_name == 'AE':
-        runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
-        pass
-    else:
-        # if we get here, this is not NMF or AE, and do nothing for now
-        pass
-
-    print("\n----- finished function runExperimentWithModel_BasicConvNet -----")
-    
-    #temporary ?
-    # return model  #TODO: have to decide if the model should be returned or not .... if not return: NOTE: delete the model from GPU !!
-    # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
-    del model
-    pass
-
-
-def runExperimentWithModel_PreTrainedNets(dataset : Dataset, hyperparams, device, dataset_name):
-    '''
-    hyperparams is a dict that should hold the following variables:
-    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
-    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
-    '''
-    print("\n----- entered function runExperimentWithModel_BasicConvNet -----")
-    '''
-    prep our dataset and dataloaders
-    '''
-    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
-    test_ds_size = len(dataset) - train_ds_size
-    split_lengths = [train_ds_size, test_ds_size]  
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
-    in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
-    output_size = 1 if isinstance(y0, int) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-    
-    # create the models
-    # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
-    model_vgg_11 = torchvision.models.vgg11(pretrained=True)
-    model_vgg_11_bn = torchvision.models.vgg11_bn(pretrained=True) # with batch normalization (bn)
-    model_vgg_16 = torchvision.models.vgg16(pretrained=True)
-    model_inception_v3 = torchvision.models.inception_v3(pretrained=True)
-    model_densenet_121 = torchvision.models.densenet121(pretrained=True) 
-    model_densenet_161 = torchvision.models.densenet161(pretrained=True) 
-    model_list_full = [model_vgg_11, model_vgg_11_bn, model_vgg_16, model_inception_v3, model_densenet_121, model_densenet_161]
-
-
-    # create the loss function and optimizer
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
-
-    '''
-    now we can perform the test !
-    '''
-
-
-    # TODO: test the models ?
-
-
-    print("\n----- finished function runExperimentWithModel_BasicConvNet -----")
-    
-    pass
-
-
-def set_out_features_for_pretrained_models(model, outputs):
-    """Changes number of outputs for the model.
-    The change occurs in-place, but the new model is also returned.
-
-    Note: this function was taken from the original paper as is.
-    """
-
-    if (isinstance(model, torchvision.models.AlexNet) or
-        isinstance(model, torchvision.models.VGG)):
-        inputs = model.classifier[-1].in_features
-        model.classifier[-1] = torch.nn.Linear(inputs, outputs, bias=True)
-        model.classifier[-1].weight.data.zero_()
-        model.classifier[-1].bias.data.zero_()
-    elif (isinstance(model, torchvision.models.ResNet) or 
-          isinstance(model, torchvision.models.Inception3)):
-        inputs = model.fc.in_features
-        model.fc = torch.nn.Linear(inputs, outputs, bias=True)
-        model.fc.weight.data.zero_()
-        model.fc.bias.data.zero_()
-    elif isinstance(model, torchvision.models.DenseNet):
-        inputs = model.classifier.in_features
-        model.classifier = torch.nn.Linear(inputs, outputs, bias=True)
-        model.classifier.weight.data.zero_()
-        model.classifier.bias.data.zero_()
-    else:
-        raise NotImplementedError()
-
-    return model

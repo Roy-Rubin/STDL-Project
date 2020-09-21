@@ -1,3 +1,23 @@
+import numpy as np
+
+def calculate_distance_between_matrices(matrix1,matrix2):
+    '''
+    step 1: check (and convert if needed) that the matrices are of numpy ndarray type
+    step 2: check distance using FROBENIUS NORM
+    '''
+    # step 1
+    m1, m2 = matrix1, matrix2
+    if not isinstance(m1, np.ndarray):
+        # assumption: it means that it is a pandas object
+        m1 = matrix1.to_numpy()
+    if not isinstance(m2, np.ndarray):
+        # assumption: it means that it is a pandas object
+        m2 = matrix1.to_numpy()
+    assert m1.shape == m2.shape
+    distance = np.linalg.norm((m1-m2)), 'fro')
+    return distance
+
+
 
 def printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame):
     print("\nprint data regarding the dataframes:")
