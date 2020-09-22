@@ -14,7 +14,7 @@ def calculate_distance_between_matrices(matrix1,matrix2):
         # assumption: it means that it is a pandas object
         m2 = matrix1.to_numpy()
     assert m1.shape == m2.shape
-    distance = np.linalg.norm((m1-m2)), 'fro')
+    distance = np.linalg.norm((m1-m2), 'fro')
     return distance
 
 

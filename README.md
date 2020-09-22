@@ -63,6 +63,7 @@ torch = 1.3.0
 torchvision == 0.4.1a0+d94043a
 Pillow==7.2.0
 matplotlib==3.2.1
+opencv-python (cv2)==4.4.0.42
 
 ## How-to-use
 

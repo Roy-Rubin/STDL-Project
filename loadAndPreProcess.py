@@ -17,6 +17,11 @@ import projectUtilities
 
 import torch
 
+import cv2
+from tqdm import tqdm
+from time import sleep
+import matplotlib.pyplot as plt
+
 
 def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
     '''
@@ -381,7 +386,7 @@ def cut_genes_with_under_B_counts(orig_df, Base_value):
     # trick from stack overflow to keep all rows that have at least one nonzero value
     reduced_df = orig_df[orig_df.sum(axis=1) > Base_value]
     indices_of_kept_rows = list(reduced_df.index.values)
-    reduced_df = reduced_df.reset_index()  # this causes a new column to appear
+    reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
     reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
     mapping = reduced_df[["original_index_from_matrix_dataframe"]]
     reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
@@ -534,8 +539,16 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         list_of_nlargest_indices = list(nlargest_variance_df.index.values) 
         # save it for future reference
         self.list_of_nlargest_indices = list_of_nlargest_indices
-        # save 
-        self.reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns         
+        # #save 
+        # TODO: previously (changed 220920 evening)
+        #self.reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns         
+        # new:
+        reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
+        reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
+        reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
+        self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
+        reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
+        self.reduced_df = reduced_df
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
 
@@ -935,4 +948,59 @@ class STDL_ConcatDataset_of_ImageFolders(torch.utils.data.Dataset):
         raise IndexError(f'{index} exceeds {self.length}')
 
 
-  
+def create_smaller_images_from_biopsy_sample(path_to_dir):
+    '''
+    Function to create_smaller_images_from_biopsy_sample
+    '''
+    print("\n----- entered function create_smaller_images_from_biopsy_sample -----")
+
+    # data points(x,y coordinate) for the tissue
+    path1 = path_to_dir + "/tissue_positions_list.csv"
+    positions_dataframe = pd.read_csv(path1,names=['barcode','tissue','row','col','x','y'])
+    print(f'path1:\n {path1}')
+
+    # import image: comes with BGR
+    path2 = path_to_dir + "/V1_Breast_Cancer_Block_A_Section_2_image.tif"
+    print(f'path2:\n {path2}')
+    img = cv2.imread(path2)
+    print(f'img.type {type(img)} ')
+    print(f'img.shape {img.shape} ')
+
+    # output path
+    out_path = path_to_dir + "/images/"
+
+    # crate the output folder if it doesnt exists
+    import os
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
+
+    ## TODO - get from "scalefactors_json" file.
+    # diameter & diameter for image 
+    spot_diameter_fullres = 177.4829519178534
+    spot_radius = int(spot_diameter_fullres/2)
+
+    # num of iterations
+    total_amount_of_spots = len(positions_dataframe.index)
+
+    for idx, row in positions_dataframe.iterrows():
+        if not row['tissue']:
+            continue
+        barcode = row['barcode']
+        x = row['x']
+        y = row['y']       
+
+        #file names
+        square_file_name = "{}_x{}_y{}_square.png".format(barcode,x,y)  # previously: '{}_x{}_y{}_{}_square.png'.format(idx,x,y,barcode)
+
+        #print progress
+        print(f'processing image {idx} of {total_amount_of_spots} with name: {square_file_name}', end='\r')
+
+        # square image
+        roi_square = img[y-spot_radius:y+spot_radius, x-spot_radius:x+spot_radius]
+        # plt.imshow(roi_square)
+        cv2.imwrite(out_path + square_file_name, roi_square)
+
+    pass
+    print(f'\nfinished cutting the big image')
+    
+

@@ -52,7 +52,7 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             x, y, _ = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25. 
                             # NOTE that the third argument recieved here is "column" and is not currently needed
             
-            # TODO: check if .to(device=device) is needed in both vars (030920 test)
+            # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
                 y = y.float()
@@ -61,7 +61,7 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             # Forward pass: compute predicted y by passing x to the model.
             y_pred = model(x)  
             
-            # TODO: check if .to(device=device) is needed in both vars (030920 test)
+            # load to device
             if device.type == 'cuda':
                 y_pred = y_pred.float()
                 y_pred = y_pred.squeeze()
@@ -102,319 +102,254 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
 
  
     print(f'finished all epochs !')
+    print(f'which means, that this model is now trained.')
     print(" \ * / FINISHED train_prediction_model \ * / ")
     return model
 
 
-def runExperimentWithModel_BasicConvNet(dataset : Dataset, hyperparams, device, dataset_name):
+def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, model_name, dataset_name):
     '''
-    hyperparams is a dict that should hold the following variables:
-    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
-    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
+    **runExperimentWithModel_BasicConvNet**
+    this function performs 2 things:
+    (1) Trains the model on patient 1 data (train data)
+    (2) Tests the model  on patient 2 data (test data)
     '''
     print("\n----- entered function runExperimentWithModel_BasicConvNet -----")
-    '''
-    prep our dataset and dataloaders
-    '''
-    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
-    test_ds_size = len(dataset) - train_ds_size
-    split_lengths = [train_ds_size, test_ds_size]  
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
 
     '''
     prepare model, loss and optimizer instances
     '''
-    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
-    in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
-    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-    
     # create the model
-    model = ConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'], hidden_dims=hyperparams['hidden_dims'])
+    model = get_model_by_name(name=model_name, dataset=ds_train, hyperparams=hyperparams)
     # create the loss function and optimizer
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
 
     '''
-    now we can perform the test !
+    Train the model
     '''
-
+    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
     model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
                                    optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
                                    max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
                                    device=device)
+    
+    '''
+    Test the model
+    '''
 
-    # TODO: test the model ?
-    '''
-    perform  an experiment to check the dimensionality restoration
-    '''
-    if dataset_name == 'NMF':
-        runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
-        pass
+    if dataset_name == 'single_gene':
+        getSingleDimPrediction(dataset=dataset, model=model, device=device)
+        print(f'TODO: print prediction')  #TODO !
+        
+    elif dataset_name == 'k_genes':
+        getKDimPrediction(dataset=dataset, model=model, device=device)
+        print(f'TODO: print prediction')  #TODO !
+
+    elif dataset_name == 'NMF':
+        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, model=model, device=device)
+        # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
+        #                      orig_matrix ~       W * H           ~ W * H_pred
+        M_fast_reconstruction = np.mm(ds_train.W, ds_train.H)
+        compare_matrices(M_truth, M_pred, M_fast_reconstruction)
+
+        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, model=model, device=device)
+        # test-error comparisons: M_truth ~ M_pred
+        #                     orig_matrix ~ W * H_pred
+        compare_matrices(M_truth, M_pred)
+        
     elif dataset_name == 'AE':
-        runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
-        pass
-    else:
-        # if we get here, this is not NMF or AE, and do nothing for now
-        pass
+        result_train_data = getFullDimsPrediction_with_AE_DS(dataset=ds_train, model=model, device=device)
+        # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
+        #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
+        M_fast_reconstruction = np.mm(ds_train.W, ds_train.H)
+        compare_matrices(M_truth, M_pred, M_fast_reconstruction)
 
+        result_test_data = getFullDimsPrediction_with_AE_DS(dataset=ds_test, model=model, device=device)
+        # test-error comparisons: M_truth ~ M_pred
+        #                     orig_matrix ~ W * H_pred
+        compare_matrices(M_truth, M_pred)
+        
+    # delete unneeded tesnors from GPU to save space
+    del model
+    # goodbye
     print("\n----- finished function runExperimentWithModel_BasicConvNet -----")
-    
-    #temporary ?
-    # return model  #TODO: have to decide if the model should be returned or not .... if not return: NOTE: delete the model from GPU !!
-    # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
-    del model
-    pass
-    
-
-def runExperimentWithModel_DenseNet121(dataset : Dataset, hyperparams, device, dataset_name):
-    '''
-    hyperparams is a dict that should hold the following variables:
-    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
-    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
-    '''
-    print("\n----- entered function runExperimentWithModel_DenseNet121 -----")
-    '''
-    prep our dataset and dataloaders
-    '''
-    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
-    test_ds_size = len(dataset) - train_ds_size
-    split_lengths = [train_ds_size, test_ds_size]  
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
-    
-    # create the model from an existing architechture
-    # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
-    model = torchvision.models.densenet121(pretrained=False)
-
-    # update the exisiting model's last layer
-    input_size = model.classifier.in_features
-    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-                                                            # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
-    model.classifier = torch.nn.Linear(input_size, output_size, bias=True)
-    model.classifier.weight.data.zero_()
-    model.classifier.bias.data.zero_()
-
-    # create the loss function and optimizer
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate']) #TODO: add momentum to hyperparams dict in the notebook.
-                                                                                                                    #TODO: in the paper momentum is 0.9 and lr is 1e-6 (1x10^-6)
-
-    '''
-    now we can perform the test !
-    '''
-
-    # TODO: NOTE: actuall training loop from the code of the original paper can be found here:
-    # https://github.com/bryanhe/ST-Net/blob/master/stnet/cmd/run_spatial.py
-    # starting from line 243
-
-    train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
-                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
-                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
-                                   device=device)
-                                   
-
-    # # TODO: test the model ?
-    # '''
-    # perform  an experiment to check the dimensionality restoration
-    # '''
-    # if dataset_name == 'NMF':
-    #     runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
-    #     pass
-    # elif dataset_name == 'AE':
-    #     runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
-    #     pass
-    # else:
-    #     # if we get here, this is not NMF or AE, and do nothing for now
-    #     pass
-
-    print("\n----- finished function runExperimentWithModel_DenseNet121 -----")
-    
-    #temporary ?
-    # return model  #TODO: have to decide if the model should be returned or not .... if not return: NOTE: delete the model from GPU !!
-    # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
-    del model
     pass
 
 
-def runExperimentWithModel_InceptionV3(dataset : Dataset, hyperparams, device, dataset_name):
-    '''
-    hyperparams is a dict that should hold the following variables:
-    batch_size, max_alowed_number_of_batches, precent_of_dataset_allocated_for_training, learning_rate, num_of_epochs,   
-    channels, num_of_convolution_layers, hidden_dims, num_of_hidden_layers, pool_every
-    '''
-    print("\n----- entered function runExperimentWithModel_InceptionV3 -----")
-    '''
-    prep our dataset and dataloaders
-    '''
-    train_ds_size = int(len(dataset) * hyperparams['precent_of_dataset_allocated_for_training'])
-    test_ds_size = len(dataset) - train_ds_size
-    split_lengths = [train_ds_size, test_ds_size]  
-    ds_train, ds_test = random_split(dataset, split_lengths)
-    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    dl_test = DataLoader(ds_test, hyperparams['batch_size'], shuffle=True)
-
-    '''
-    prepare model, loss and optimizer instances
-    '''
-    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
-    
-    # create the models
-    # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
-    print(f'starting to load the model inception_v3 from torchvision.models. this is quite heavy, and might take some time ...')
-    model = torchvision.models.inception_v3(pretrained=False) 
-    print(f'finished loading model')
-
-    # update the existing models laster layer
-    inputs = model.fc.in_features
-    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-                                                            # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
-    model.fc = torch.nn.Linear(inputs, output_size, bias=True)
-    model.fc.weight.data.zero_()
-    model.fc.bias.data.zero_()
-
-    # create the loss function and optimizer
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate']) #TODO: add momentum to hyperparams dict in the notebook.
-                                                                                                                    #TODO: in the paper momentum is 0.9 and lr is 1e-6 (1x10^-6)
-
-    '''
-    now we can perform the test !
-    '''
-
-    # TODO: NOTE: actuall training loop from the code of the original paper can be found here:
-    # https://github.com/bryanhe/ST-Net/blob/master/stnet/cmd/run_spatial.py
-    # starting from line 243
-
-    train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
-                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
-                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
-                                   device=device)
-                                   
-
-    # # TODO: test the model ?
-    # '''
-    # perform  an experiment to check the dimensionality restoration
-    # '''
-    # if dataset_name == 'NMF':
-    #     runDimensionalityRestorationExperiment_with_NMF_DS(dataset=dataset, model=model, device=device)
-    #     pass
-    # elif dataset_name == 'AE':
-    #     runDimensionalityRestorationExperiment_with_AE_DS(dataset=dataset, model=model, device=device)
-    #     pass
-    # else:
-    #     # if we get here, this is not NMF or AE, and do nothing for now
-    #     pass
-
-    print("\n----- finished function runExperimentWithModel_InceptionV3 -----")
-    
-    #temporary ?
-    # return model  #TODO: have to decide if the model should be returned or not .... if not return: NOTE: delete the model from GPU !!
-    # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
-    del model
+def compare_matrices(M_truth, M_pred, M_fast_reconstruction=None): #note the None if not needed
+    # TODO: might need to move to utilities
+    print(f'TODO: print comparison of error results')  #TODO !
+    # # trick to get num of identical elements between 2 NUMPY arrays 
+    # number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
+    # print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
     pass
 
 
-def runDimensionalityRestorationExperiment_with_NMF_DS(dataset : Dataset, model, device):
-    '''
-    '''
-    print("\n----- entered function runDimensionalityRestorationExperiment_with_NMF_DS -----")
+def getSingleDimPrediction(dataset, model, device):
+    print(f'TODO: this isnt implemented yet ...')  #TODO !
 
-    # # Verification of W,H matrices
-    # print("Verification of W,H matrices:")  
-    # print(f'W len {len(dataset.W)}')
-    # print(f'W type {type(dataset.W)}')
-    # print(f'W shape {dataset.W.shape}')
-    # print(f'H len {len(dataset.H)}')
-    # print(f'H len {type(dataset.H)}')
-    # print(f'H shape {dataset.H.shape}')
-    # print(f' and so: W*H = {dataset.W.shape}*{dataset.H.shape} should give us the right format')
+
+def getKDimPrediction(dataset, model, device):
+    print(f'TODO: this isnt implemented yet ...')  #TODO !
+
+
+def getFullDimsPrediction_with_NMF_DS(dataset, model, device):
+    '''
+    REMINDER:
+    NMF decomposition performs  M = W * H
+    lets denote M == M_truth
+
+    THIS FUNCTION:
+    this function will perform dimension restoration using matrix multiplication:
+    if we denote  y_pred == H_pred  then:
+                            W * H_pred = M_pred
+
+    and then if we want we can compare   M_pred  to   M_truth
+    '''
+    print("\n----- entered function getFullDimsPrediction_with_NMF_DS -----")
 
     '''
-    # take an image, run it through the model, restore its dimensions, and compare it to the original vecotr from the dataset
+    prepare the data
     '''
-    x0, y0, column = dataset[0]
-    x0 = x0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
-    y0 = y0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
-    y0_pred = model(x0)  # NOTE: assumption: model was already uploaded to cuda when it was trained
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)  # batch_size=len(dataset) == should be the number of images in the dataset
+    dl_iter = iter(dataloader)
+    data = next(dl_iter)
+    x, y, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+    print(f'--delete-- x.shape {x.shape}')
+
+    # load to device
+    if device.type == 'cuda':
+        x = x.to(device=device)  
+        y = y.float()
+        y = y.to(device=device)
     
     '''
-    restore dimension to y0_pred by performing: res =      W * y_pred 
-                                                 (33538 x K) * (K * num_of_images)
+    feed data to model to get K dim result
+    '''
+    y_pred = model(x)
+    print(f'--delete-- y_pred.shape {y_pred.shape}')
+    
+    '''
+    restore dimension to y_pred by performing: res =      W * y_pred                =      M_pred
+                                                (33538 x K) * (K * num_of_images)   = (33538 x num_of_images) 
+                                                the number 33538 might change due to pre-processing steps
     '''
     # both vecotors need a little preparation for the multiplication
-    y0_pred_prepared = y0_pred.t().to(device=device) #note the transpose here !
+    y_pred_prepared = y0_pred.t().to(device=device) #note the transpose here !
     W_prepared = torch.from_numpy(dataset.W).float().to(device=device)
 
-    # print(f'--delete-- verify: W_prepared.shape {W_prepared.shape}, y0_pred_prepared.shape {y0_pred_prepared.shape}')
-
-    y0_pred_all_dims = torch.mm(W_prepared, y0_pred_prepared)  
-
-    # print(f'--delete-- verify: x0.shape {x0.shape}, y0.shape {y0.shape}, y0_pred.shape {y0_pred.shape}, y0_pred_all_dims.shape {y0_pred_all_dims.shape}')
-
-    y0_ground_truth_all_dims = dataset.matrix_dataframe.iloc[:, column].to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
-
-    # # trick to get num of identical elements between 2 NUMPY arrays 
-    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension; and both vectors needs rounding to closest int (using np.rint)
-    y0_groundtruth_prepared = np.rint(y0_ground_truth_all_dims)
-    y0_pred_prepared = np.rint(y0_pred_all_dims.squeeze().cpu().detach().numpy())   # np.squeeze(np.rint(y0_pred_all_dims.cpu().detach().numpy()))
-
-    # print(f'--delete-- verify:  y0_pred_prepared shape {y0_pred_prepared.shape} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared.shape}')
-    # print(f'--delete-- verify:  y0_pred_prepared {y0_pred_prepared} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared}')
-
-    # assert y0_groundtruth_prepared == y0_pred_prepared.shape  # check if needed
-    number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
-                                                                                                      # note that "y0_pred_all_dims" needs to be copied from cuda to cpu in order to use numpy                                                                                                  
-
-    print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
+    print(f'--delete-- verify: W_prepared.shape {W_prepared.shape}, y_pred_prepared.shape {y_pred_prepared.shape}')
+    # get M_pred
+    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension
+    M_pred = torch.mm(W_prepared, y_pred_prepared)  
+    M_pred = M_pred.cpu().detach().numpy()
+    # get M_truth
+    M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
+    # assert equal sizes
+    assert M_pred.shape == M_truth.shape
+    # 
+    return M_truth, M_pred
 
 
-    print("\n----- finished function runDimensionalityRestorationExperiment_with_NMF_DS -----\n")
-
-    pass
-
-
-def runDimensionalityRestorationExperiment_with_AE_DS(dataset : Dataset, model, device):
+def getFullDimsPrediction_with_AE_DS(dataset, model, device):
     '''
+    REMINDER:
+    we recieved our y values from the latent space using the pre-trained encoder
+    y_pred was recieved due to: 
+    note that  y_pred == Predict(X)
+
+    THIS FUNCTION:
+    this function will perform dimension restoration using the decoder
+    we denote  Decode(y_pred) == Decode(Predict(X)) == M_pred
+    and M_truth as the original matrix
+                            
+    and then if we want we can compare   M_pred  to   M_truth
+
+    and if wanted we can also compare
     '''
-    print("\n----- entered function runDimensionalityRestorationExperiment_with_AE_DS -----")
+    print("\n----- entered function getFullDimsPrediction_with_NMF_DS -----")
 
     '''
-    # take an image, run it through the model, restore its dimensions, and compare it to the original vecotr from the dataset
+    prepare the data
     '''
-    # note that since this is a small test over 1 image, i dont copy to cuda, and i need to unsqueeze x0 and y0 to get their batch dim
-    x0, y0, column = dataset[0]
-    x0 = x0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
-    y0 = y0.unsqueeze(0).to(device=device)  # add batch dimension (1,...) at beginning of the tensor's shape
-    y0_pred = model(x0)  # NOTE: assumption: model was already uploaded to cuda when it was trained
-    # restore dimension to y0_pred by using the decoder (from our pre-trained autoencoder)
-    y0_pred_all_dims = dataset.autoEncoder.decodeWrapper(y0_pred)
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)  # batch_size=len(dataset) == should be the number of images in the dataset
+    dl_iter = iter(dataloader)
+    data = next(dl_iter)
+    x, y, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+    print(f'--delete-- x.shape {x.shape}')
 
-    # print(f'--delete-- verify: x0.shape {x0.shape}, y0.shape {y0.shape}, y0_pred.shape {y0_pred.shape}, y0_pred_all_dims.shape {y0_pred_all_dims.shape}')
+    # load to device
+    if device.type == 'cuda':
+        x = x.to(device=device)  
+        y = y.float()
+        y = y.to(device=device)
+    
+    '''
+    feed data to model to get K dim result
+    '''
+    y_pred = model(x)
+    print(f'--delete-- y_pred.shape {y_pred.shape}')
+    
+    '''
+    restore dimension to y_pred by using the decoder
+    '''
+    # restore dimension to y_pred by using the decoder (from our pre-trained autoencoder)
+    M_pred = dataset.autoEncoder.decodeWrapper(y_pred) # TODO: might need to put .to(device) here
+    M_pred = M_pred.cpu().detach().numpy()
+    # get M_truth
+    M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
+    # assert equal sizes
+    assert M_pred.shape == M_truth.shape
+    #
+    return M_truth, M_pred
+    
 
-    y0_ground_truth_all_dims = dataset.matrix_dataframe.iloc[:, column].to_numpy()  # this is the full 33538 dimensional vector (or 23000~ after reduction) from the original dataframe
 
-    # # trick to get num of identical elements between 2 NUMPY arrays 
-    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension; and both vectors needs rounding to closest int (using np.rint)
-    y0_groundtruth_prepared = np.rint(y0_ground_truth_all_dims)
-    y0_pred_prepared = np.rint(y0_pred_all_dims.squeeze().cpu().detach().numpy())   # np.squeeze(np.rint(y0_pred_all_dims.cpu().detach().numpy()))
 
-    # print(f'--delete-- verify:  y0_pred_prepared shape {y0_pred_prepared.shape} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared.shape}')
-    # print(f'--delete-- verify:  y0_pred_prepared {y0_pred_prepared} \ny0_groundtruth_prepared shape {y0_groundtruth_prepared}')
 
-    # assert y0_groundtruth_prepared == y0_pred_prepared.shape  # check if needed
-    number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
-                                                                                                      # note that "y0_pred_all_dims" needs to be copied from cuda to cpu in order to use numpy                                                                                                  
 
-    print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
+    return result
 
-    print("\n----- finished function runDimensionalityRestorationExperiment_with_AE_DS -----\n")
 
-    pass
+def get_model_by_name(name, dataset, hyperparams):
+    '''
+    prep:
+    '''
+    x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
+    in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+    '''
+    get_model_by_name
+    '''
+    if name == 'BasicConvNet':
+        model = ConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'], hidden_dims=hyperparams['hidden_dims'])
+        return model
+    elif name == 'DensetNet121':
+        # create the model from an existing architechture
+        # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+        model = torchvision.models.densenet121(pretrained=False)
+
+        # update the exisiting model's last layer
+        input_size = model.classifier.in_features
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+                                                                # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
+        model.classifier = torch.nn.Linear(input_size, output_size, bias=True)
+        model.classifier.weight.data.zero_()
+        model.classifier.bias.data.zero_()
+        return model
+    elif name == 'Inception_V3':
+        # create the models
+        # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+        print(f'starting to load the model inception_v3 from torchvision.models. this is quite heavy, and might take some time ...')
+        model = torchvision.models.inception_v3(pretrained=False) 
+        print(f'finished loading model')
+
+        # update the existing models laster layer
+        input_size = model.fc.in_features
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+                                                                # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
+        model.fc = torch.nn.Linear(input_size, output_size, bias=True)
+        model.fc.weight.data.zero_()
+        model.fc.bias.data.zero_()
+        return model
