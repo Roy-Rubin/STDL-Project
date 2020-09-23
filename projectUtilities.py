@@ -7,6 +7,8 @@ def calculate_distance_between_matrices(matrix1,matrix2):
     '''
     # step 1
     m1, m2 = matrix1, matrix2
+    if m1 is None or m2 is None:
+        return 0
     if not isinstance(m1, np.ndarray):
         # assumption: it means that it is a pandas object
         m1 = matrix1.to_numpy()
@@ -61,7 +63,7 @@ def printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame):
         print(f'{index+1}: the value {value} appeared {num_of_apearences} times (constitutes {(num_of_apearences/num_of_values_in_matrix)*100:.5f}% of the matrix values)') 
         # "":.5f" rounds to 00.00000
 
-    print(f'\nplotting a scatter plot of all values in matrix_dataframe (to see the distribution of values)')
+    #TODO: print(f'\nplotting a scatter plot of all values in matrix_dataframe (to see the distribution of values)')
 
     #TODO: do this : create a plot of all the data !
     # import matplotlib.pyplot as plt
@@ -127,7 +129,7 @@ def printInfoAboutReducedDF(matrix_dataframe):
         print(f'{index+1}: the value {value} appeared {num_of_apearences} times (constitutes {(num_of_apearences/num_of_values_in_matrix)*100:.5f}% of the matrix values)') 
         # "":.5f" rounds to 00.00000
 
-    print(f'\nplotting a scatter plot of all values in matrix_dataframe (to see the distribution of values)')
+    #TODO: print(f'\nplotting a scatter plot of all values in matrix_dataframe (to see the distribution of values)') 
 
     #TODO: do this : create a plot of all the data !
     # import matplotlib.pyplot as plt

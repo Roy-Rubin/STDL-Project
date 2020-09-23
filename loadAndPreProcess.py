@@ -47,9 +47,17 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
     print("started reading matrix.mtx. this might take some time ...")
     path_to_matrix = path_to_mtx_tsv_files_dir + "/matrix.mtx"  # TODO: note no gz
     matrix = scipy.io.mmread(path_to_matrix)
-    matrix_dataframe = pd.DataFrame.sparse.from_spmatrix(
-        matrix)  # todo: note sure this works. from: https://pandas.pydata.org/docs/user_guide/sparse.html
+    matrix_dataframe = pd.DataFrame.sparse.from_spmatrix(matrix)  # todo: note sure this works. from: https://pandas.pydata.org/docs/user_guide/sparse.html
     print("V  finished reading matrix.mtx")
+
+    # testing 230920 morning
+    print("adjusting matrix_dataframe including type conversion, and NaN filling")
+    matrix_dataframe = matrix_dataframe.replace([np.inf, -np.inf], np.nan) # replace all inf values with a NaN value
+    matrix_dataframe = matrix_dataframe.fillna(0) #fill all NaN values with 0 ....
+    matrix_dataframe = matrix_dataframe.dropna(axis=1, how='all') #drop all columns that have ONLY NaN values
+    matrix_dataframe = matrix_dataframe.dropna(axis=0, how='any') #drop all rows that have at least one NaN value
+    # matrix_dataframe = matrix_dataframe.astype(int) #convert value types to int
+    print("V  finished working on matrix_dataframe")
 
     # # print information if requested by user
     # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
@@ -63,6 +71,7 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
     # else:
     #     print("since you did not input a yes, thats a no :)")
 
+    # projectUtilities.printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame)
     
     print("\n----- finished function load_dataframes_from_mtx_and_tsv -----\n")
 
@@ -382,7 +391,7 @@ def cut_genes_with_under_B_counts(orig_df, Base_value):
 
     assumption: genes (features) are the rows of the df, samples are the columns
     '''
-    print(f'cutting all genes (rows) that contain only zeros ...')
+    print(f'cutting all genes (rows) that contain less than B counts ...')
     # trick from stack overflow to keep all rows that have at least one nonzero value
     reduced_df = orig_df[orig_df.sum(axis=1) > Base_value]
     indices_of_kept_rows = list(reduced_df.index.values)
@@ -403,7 +412,7 @@ def cut_genes_with_under_B_counts(orig_df, Base_value):
     # else:
     #     print("since you did not input a yes, thats a no :)")
 
-    projectUtilities.printInfoAboutReducedDF(reduced_df)
+    # projectUtilities.printInfoAboutReducedDF(reduced_df)
 
     # return 
     return reduced_df, mapping 
@@ -445,10 +454,35 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         # path_to_images_dir = "C:/Users/royru/Downloads/spatialGeneExpression/images"  # looks for all sub folders, finds only: # /images/  #
         # path_to_mtx_tsv_files_dir = "C:/Users/royru/Downloads/spatialGeneExpression"
 
+        '''
+        save important variables for later usage
+        '''
+
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
         self.gene_name = chosen_gene_name
         self.index_mapping = index_mapping
+
+        '''
+        create the reduced dataframe == a dataframe with only one row
+        '''
+
+        # get the y value's ROW in the gene expression matrix MTX (with help from the features df)
+        output_indices_list = self.features_dataframe.index[self.features_dataframe['gene_names'] == self.gene_name].tolist()
+        assert (len(output_indices_list) == 1)
+        curr_gene_name_index_in_features_df = output_indices_list[0]
+        row_in_original_dataframe = curr_gene_name_index_in_features_df
+        
+        # this row number needs to be transformed with the mapping because some rows were deleted
+        row = self.index_mapping.index[self.index_mapping['original_index_from_matrix_dataframe'] == row_in_original_dataframe].tolist()
+        assert (len(row) == 1)  # there should be only one of these
+        row = row[0]  # list of size 1
+        # verify that the recieved gene name's row number wasnt deleted in `cut_genes_with_under_B_counts` function
+        assert len(self.matrix_dataframe.index.values) >= row
+        # now we can finaly save the data
+        self.row = row
+        self.reduced_dataframe = self.matrix_dataframe.iloc[row, :]  # get only the relevant gene's row over ALL samples (== all columns)
+        # self.reduced_dataframe.rename( columns={0 :'values'}, inplace=True ) # since the previous line gave us one column of values with no name, I renamed it
 
         print("\n----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----\n")
 
@@ -485,21 +519,15 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         curr_sample_name_index_in_barcoes_df = output_indices_list[0]
         column = curr_sample_name_index_in_barcoes_df
 
-        # get the y value's ROW in the gene expression matrix MTX (with help from the features df)
-        output_indices_list = self.features_dataframe.index[self.features_dataframe['gene_names'] == self.gene_name].tolist()
-        assert (len(output_indices_list) == 1)
-        curr_gene_name_index_in_features_df = output_indices_list[0]
-        row_in_original_dataframe = curr_gene_name_index_in_features_df
-        
-        # this row number needs to be transformed with the mapping because some rows were deleted
-        row = self.index_mapping.index[self.index_mapping['original_index_from_matrix_dataframe'] == row_in_original_dataframe].tolist() # there should be only one of these
-        assert (len(row) == 1)
-        row = row[0]  # list of size 1
-        # verify that the recieved gene name's row number wasnt deleted in `cut_genes_with_under_B_counts` function
-        assert len(self.matrix_dataframe.index.values) >= row
+        # get the y value's ROW in the gene expression matrix MTX 
+        current_gene_expression_value = self.matrix_dataframe.iloc[self.row, column]
 
-        # finally, get the y value from the gene expression matrix MTX
-        current_gene_expression_value = self.matrix_dataframe.iloc[row, column]
+        # TODO: the block below might not be needed
+        # NOTE: there should be only one row in the reduced dataframe -
+        #       and when this happens then the dataframe is transpoed and columns become rows
+        #       and so to get the index at column C its as if we need to get info from row C
+        #       and since now after transpose there is only 1 column, then the iloc on the entire row returns only 1 value
+        # current_gene_expression_value = self.reduced_dataframe.iloc[[column]]
 
         # for me
         y = current_gene_expression_value
@@ -543,12 +571,12 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         # TODO: previously (changed 220920 evening)
         #self.reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns         
         # new:
-        reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
+        reduced_df = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
         reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
         reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
         self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
         reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
-        self.reduced_df = reduced_df
+        self.reduced_dataframe = reduced_df
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
 

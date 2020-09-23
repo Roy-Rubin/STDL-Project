@@ -5,6 +5,7 @@ import torchvision
 import numpy as np
 from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet
+from projectUtilities import calculate_distance_between_matrices
 
 
 def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimizer, num_of_epochs_wanted, max_alowed_number_of_batches, device):
@@ -129,49 +130,50 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     Train the model
     '''
     dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+    trained_model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
                                    optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
                                    max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
                                    device=device)
     
     '''
-    Test the model
+    Test the model and print comparisons
     '''
+    ### important NOTE!  first 2 exps use ONLY ds_test, the 2 last ones use both train and test !!!!!!!!!!!! TODO verify this is OK
 
     if dataset_name == 'single_gene':
-        getSingleDimPrediction(dataset=dataset, model=model, device=device)
-        print(f'TODO: print prediction')  #TODO !
+        M_truth, M_pred = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device, model_name=model_name) # note that this function saves a figure
+        compare_matrices(M_truth, M_pred, None)
         
     elif dataset_name == 'k_genes':
-        getKDimPrediction(dataset=dataset, model=model, device=device)
-        print(f'TODO: print prediction')  #TODO !
+        M_truth, M_pred = getKDimPrediction(dataset=ds_test, model=trained_model, device=device)
+        compare_matrices(M_truth, M_pred, None)
 
     elif dataset_name == 'NMF':
-        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, model=model, device=device)
+        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, model=trained_model, device=device)
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
         #                      orig_matrix ~       W * H           ~ W * H_pred
         M_fast_reconstruction = np.mm(ds_train.W, ds_train.H)
         compare_matrices(M_truth, M_pred, M_fast_reconstruction)
 
-        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, model=model, device=device)
+        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
         compare_matrices(M_truth, M_pred)
         
     elif dataset_name == 'AE':
-        result_train_data = getFullDimsPrediction_with_AE_DS(dataset=ds_train, model=model, device=device)
+        result_train_data = getFullDimsPrediction_with_AE_DS(dataset=ds_train, model=trained_model, device=device)
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
         #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
         M_fast_reconstruction = np.mm(ds_train.W, ds_train.H)
         compare_matrices(M_truth, M_pred, M_fast_reconstruction)
 
-        result_test_data = getFullDimsPrediction_with_AE_DS(dataset=ds_test, model=model, device=device)
+        result_test_data = getFullDimsPrediction_with_AE_DS(dataset=ds_test, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
         compare_matrices(M_truth, M_pred)
         
     # delete unneeded tesnors from GPU to save space
-    del model
+    del trained_model
     # goodbye
     print("\n----- finished function runExperimentWithModel_BasicConvNet -----")
     pass
@@ -180,18 +182,245 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
 def compare_matrices(M_truth, M_pred, M_fast_reconstruction=None): #note the None if not needed
     # TODO: might need to move to utilities
     print(f'TODO: print comparison of error results')  #TODO !
+    '''
+    method 1 - compare identical elements
+    '''
     # # trick to get num of identical elements between 2 NUMPY arrays 
     # number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
     # print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
+    '''
+    method 2 - calculate distance between matrices
+    '''
+    error1 = calculate_distance_between_matrices(M_truth, M_pred)
+    error2 = calculate_distance_between_matrices(M_truth, M_fast_reconstruction)
+    error3 = calculate_distance_between_matrices(M_pred, M_fast_reconstruction)
+    if M_fast_reconstruction is None:
+        print(f'recieved M_fast_reconstruction=None. errors with it will be 0')
+    print(f'distance between M_truth, M_pred: {error1}')
+    print(f'distance between M_truth, M_fast_reconstruction: {error2}')
+    print(f'distance between M_pred, M_fast_reconstruction: {error3}')
+
     pass
 
 
-def getSingleDimPrediction(dataset, model, device):
-    print(f'TODO: this isnt implemented yet ...')  #TODO !
+def getSingleDimPrediction(dataset, model, device, model_name):
+    '''
+    REMINDER:
+    in 1 dim  prediction experiment we chose a single gene from matrix_df
+    and then we trained the model to predict a 1-dimensional vector  meaning - to y values for that gene
+
+              Predict(one_image) = single y value
+
+    THIS FUNCTION:
+    we will test our model on all of the images from the test dataset !
+    we will predict:
+            Predict(all_images) = vector of size (all_images_amount x 1)
+
+    lets denote M_truth to be the test dataframe matrix that contains all K values.
+    if we denote that vector as  y_pred == M_pred  then we will want to compare between:
+
+                                 M_pred ~ M_truth
+
+    also, since these should be both 1-d vectors, we will perform a scatter plot of the result !
+    '''
+
+    print("\n----- entered function getSingleDimPrediction -----")
+
+    '''
+    prepare the data
+    '''
+    
+    '''
+    prepare the data
+    '''
+    batch_size = 20
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True) 
+    dl_iter = iter(dataloader)
+    num_of_batches = (len(dataset) // batch_size)
+    if (len(dataset) % batch_size) != 0:
+        num_of_batches = num_of_batches + 1
+
+    y_pred_final = None
+
+    for batch_index in range(num_of_batches):
+        with torch.no_grad():  # no need to keep track of gradients since we are only using the forward of the model
+            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            data = next(dl_iter)
+            x, y, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+            # print(f'\n--delete-- x.shape {x.shape}')
+
+            # load to device
+            if device.type == 'cuda':
+                x = x.to(device=device)  
+                y = y.float()
+                y = y.to(device=device)
+        
+            '''
+            feed data to model to get K dim result
+            '''
+            # # This nex lines is to heavy for the GPU (apparantly); and so it is divided into small portions
+            y_pred = model(x)
+
+            if y_pred_final is None:  # means this is the first time the prediction occured == first iteration of the loop
+                y_pred_final = y_pred.cpu().detach().numpy()
+            else:               # means this is not the first time 
+                                # in that case, we will "stack" (concatanate) numpy arrays
+                                # np.vstack: # Stack arrays in sequence vertically (row wise) !
+                y_pred_curr_prepared = y_pred.cpu().detach().numpy()
+                y_pred_final = np.vstack((y_pred_final, y_pred_curr_prepared))
+            
+            # delete vectors used from the GPU
+            del x
+            del y 
+            # finished loop
+
+
+    '''
+    ***
+    '''
+    # both vecotors need a little preparation for the multiplication
+    #y_pred_prepared = y0_pred.t().to(device=device) #note the transpose here ! # TODO: this is the version before 230920
+
+    # get M_pred
+    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension
+    # M_pred = y_pred.cpu().detach().numpy() # TODO: this is the version BEFORE 230920
+    M_pred = y_pred_final # TODO: this is the version AFTER 230920
+    # get M_truth
+    M_truth = dataset.reduced_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
+    # assert equal sizes
+    M_truth = M_truth.transpose()  #NOTE the transpose here to match the shapes !!!
+    print(f'--delete-- verify:  M_pred.shape {M_pred.shape}  ~  M_truth.shape {M_truth.shape}')
+    M_pred = M_pred.squeeze()
+    M_truth = M_truth.squeeze()
+    assert M_pred.shape == M_truth.shape
+
+    # plot results and save them
+    from matplotlib import pyplot as plt
+    plt.clf()  # clears previous plots
+    plt.plot(M_truth, M_pred, label='M_truth VS M_pred')
+    plt.xlabel(f'')
+    plt.ylabel(f'')
+    plt.title(f'Result of comparison between M_truth VS M_pred with model: {model_name}')
+    plt.legend()
+    filename = f'{model_name}_comparison'
+    plt.savefig(f'{filename}.png', bbox_inches='tight')
+
+    print("\n----- finished function getSingleDimPrediction -----")
+    #
+    return M_truth, M_pred
 
 
 def getKDimPrediction(dataset, model, device):
-    print(f'TODO: this isnt implemented yet ...')  #TODO !
+    '''
+    REMINDER:
+    in K dim  prediction experiment we chose the K genes with the highest variance from matrix_df
+    and then we trained the model to predict a k-dimensional vector  meaning - to predict k genes (for a single image)
+
+              Predict(one_image) = vector of size (1 x K)
+
+    THIS FUNCTION:
+    we will test our model on the K-genes with the highest varience from the test dataset !
+    we will predict:
+            Predict(all_images) = vector of size (all_images_amount x K)
+
+    lets denote M_truth to be the test dataframe matrix that contains all K values.
+    if we denote that vector as  y_pred == M_pred  then we will want to compare between:
+
+                                 M_pred ~ M_truth
+                            
+    '''
+    print("\n----- entered function getKDimPrediction -----")
+
+    '''
+    prepare the data
+    '''
+
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)  # batch_size=len(dataset) == should be the number of images in the dataset
+    dl_iter = iter(dataloader)
+    #
+    y_pred_final = None
+
+    with torch.no_grad():
+        data = next(dl_iter)
+        x, y, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+        print(f'--delete-- x.shape {x.shape}')
+
+        # load to device
+        if device.type == 'cuda':
+            x = x.to(device=device)  
+            y = y.float()
+            y = y.to(device=device)
+        
+        '''
+        feed data to model to get K dim result
+        '''
+        # # This nex lines is to heavy for the GPU (apparantly); and so it is divided into small portions
+        y_pred_final = model(x)
+
+        # delete vectors used from the GPU
+        del x
+        del y 
+        # finished section of torch.no_grad()
+    
+    # '''
+    # prepare the data
+    # '''
+
+    # dataloader = DataLoader(dataset, batch_size=20, shuffle=True)  # batch_size=len(dataset) == should be the number of images in the dataset
+    # dl_iter = iter(dataloader)
+    # num_of_batches = (len(ds_train) // dl_train.batch_size)
+
+    # y_pred_final = None
+
+    # for batch in range(num_of_batches):
+    #     with torch.no_grad():
+    #         data = next(dl_iter)
+    #         x, y, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+    #         print(f'--delete-- x.shape {x.shape}')
+
+    #         # load to device
+    #         if device.type == 'cuda':
+    #             x = x.to(device=device)  
+    #             y = y.float()
+    #             y = y.to(device=device)
+        
+    #         '''
+    #         feed data to model to get K dim result
+    #         '''
+    #         # # This nex lines is to heavy for the GPU (apparantly); and so it is divided into small portions
+    #         y_pred = model(x)
+
+    #         if y_pred_final is None:  # means this is the first time the prediction occured == first iteration of the loop
+    #             y_pred_final = y_pred.cpu().detach().numpy()
+    #         else:               # means this is not the first time 
+    #                             # in that case, we will "stack" (concatanate) numpy arrays
+    #                             # np.vstack: # Stack arrays in sequence vertically (row wise) !
+    #             y_pred_curr_prepared = y_pred.cpu().detach().numpy()
+    #             y_pred_final = np.vstack((y_pred_final, y_pred_curr_prepared))
+            
+    #         # delete vectors used from the GPU
+    #         del x
+    #         del y 
+    #         # finished loop
+
+
+    '''
+    ***
+    '''
+    # both vecotors need a little preparation for the multiplication
+    #y_pred_prepared = y0_pred.t().to(device=device) #note the transpose here ! # TODO: this is the version before 230920
+
+    # get M_pred
+    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension
+    # M_pred = y_pred.cpu().detach().numpy() # TODO: this is the version BEFORE 230920
+    M_pred = y_pred_final # TODO: this is the version AFTER 230920
+    # get M_truth
+    M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
+    # assert equal sizes
+    assert M_pred.shape == M_truth.shape
+
+    #
+    return M_truth, M_pred
 
 
 def getFullDimsPrediction_with_NMF_DS(dataset, model, device):
@@ -248,7 +477,10 @@ def getFullDimsPrediction_with_NMF_DS(dataset, model, device):
     M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
     # assert equal sizes
     assert M_pred.shape == M_truth.shape
-    # 
+    # delete vectors used from the GPU
+    del x
+    del y 
+    #
     return M_truth, M_pred
 
 
@@ -301,6 +533,9 @@ def getFullDimsPrediction_with_AE_DS(dataset, model, device):
     M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
     # assert equal sizes
     assert M_pred.shape == M_truth.shape
+    # delete vectors used from the GPU
+    del x
+    del y 
     #
     return M_truth, M_pred
     
