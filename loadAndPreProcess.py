@@ -51,7 +51,7 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
     print("V  finished reading matrix.mtx")
 
     # testing 230920 morning
-    print("adjusting matrix_dataframe including type conversion, and NaN filling")
+    print("adjusting matrix_dataframe")
     matrix_dataframe = matrix_dataframe.replace([np.inf, -np.inf], np.nan) # replace all inf values with a NaN value
     matrix_dataframe = matrix_dataframe.fillna(0) #fill all NaN values with 0 ....
     matrix_dataframe = matrix_dataframe.dropna(axis=1, how='all') #drop all columns that have ONLY NaN values
@@ -440,33 +440,27 @@ def perform_log_1p_normalization(df):
 
 class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
     '''
-
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, gene exp value)
-
     NOTE: the above gene exp value is for a specific gene
-
     '''
 
     def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, chosen_gene_name, index_mapping):
         print("\n----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----")
 
-        # just in case:
-        # path_to_images_dir = "C:/Users/royru/Downloads/spatialGeneExpression/images"  # looks for all sub folders, finds only: # /images/  #
-        # path_to_mtx_tsv_files_dir = "C:/Users/royru/Downloads/spatialGeneExpression"
-
-        '''
-        save important variables for later usage
-        '''
-
+        # Save important information from outside
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
         self.gene_name = chosen_gene_name
         self.index_mapping = index_mapping
 
+        # save additional information
+        self.num_of_features_matrix_df = len(matrix_dataframe.index) 
+        self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
+        self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+
         '''
         create the reduced dataframe == a dataframe with only one row
         '''
-
         # get the y value's ROW in the gene expression matrix MTX (with help from the features df)
         output_indices_list = self.features_dataframe.index[self.features_dataframe['gene_names'] == self.gene_name].tolist()
         assert (len(output_indices_list) == 1)
@@ -537,24 +531,26 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
 
 class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Dataset):
     '''
-
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, k-dim tensor)  ** the tensor is from k-dim latent space
-
     '''
 
     def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, num_of_dims_k):
         print("\n----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----")
 
-        # just in case:
-        # path_to_images_dir = "C:/Users/royru/Downloads/spatialGeneExpression/images"  # looks for all sub folders, finds only: # /images/  #
-        # path_to_mtx_tsv_files_dir = "C:/Users/royru/Downloads/spatialGeneExpression"
-
+        # Save important information from outside
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
         # NOTE: the matrix_dataframe above is a reduced version of the original matrix_dataframe
         self.num_of_dims_k = num_of_dims_k
 
-        # # # create the reduced dataframe: # # #
+        # save additional information
+        self.num_of_features_matrix_df = len(matrix_dataframe.index) 
+        self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
+        self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+
+        '''
+        create a reduced dataframe == a dataframe with only K chosen features 
+        '''
         print("calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...")
         import pandas as pd
         variance_df = matrix_dataframe.var(axis=1)  # get the variance of all the genes [varience of each gene over all samples] 
@@ -635,38 +631,40 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
 
 class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
     '''
-
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, k-dim tensor)  ** the tensor is from k-dim latent space
-
     '''
 
     def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, num_of_dims_k):
         print("\n----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_LatentTensor_NMF -----")
 
-        # just in case:
-        # path_to_images_dir = "C:/Users/royru/Downloads/spatialGeneExpression/images"  # looks for all sub folders, finds only: # /images/  #
-        # path_to_mtx_tsv_files_dir = "C:/Users/royru/Downloads/spatialGeneExpression"
-
+        # Save important information from outside
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
-        # NOTE: the matrix_dataframe above is a reduced version of the original matrix_dataframe
+        # NOTE: the matrix_dataframe above is a reduced version of the original matrix_dataframe after cutting features by condition
         self.num_of_dims_k = num_of_dims_k
+
+        # save additional information
+        self.num_of_features_matrix_df = len(matrix_dataframe.index) 
+        self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
+        self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
 
         # create the reduced dataframe:
         print("performing NMF decomposition on main matrix dataframe ...")
         self.nmf_model = NMF(n_components=num_of_dims_k, init='random', random_state=0)  # TODO: what init should we use here ?
         self.W = self.nmf_model.fit_transform(matrix_dataframe)  # TODO: check if we need a "fit transform" here or not
         self.H = self.nmf_model.components_
+        # !!! create the reduced dataframe !!!
         self.reduced_dataframe = self.H   
-        #
         self.reduced_dataframe = pd.DataFrame(data=self.reduced_dataframe)
+
+
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
 
 
     def __len__(self):
         # 'Denotes the total number of samples (that actually have images attached to them'
-        return len(self.imageFolder)
+        return self.size_of_dataset
 
 
     def __getitem__(self, index):
@@ -727,29 +725,31 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
     def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_datafame, num_of_dims_k, device):
         print("\n----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder -----")
 
-        # just in case:
-        # path_to_images_dir = "C:/Users/royru/Downloads/spatialGeneExpression/images"  # looks for all sub folders, finds only: # /images/  #
-        # path_to_mtx_tsv_files_dir = "C:/Users/royru/Downloads/spatialGeneExpression"
-
+        # Save important information from outside
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_datafame = matrix_dataframe, features_dataframe, barcodes_datafame
         # NOTE: the matrix_dataframe above is a reduced version of the original matrix_dataframe
         self.num_of_dims_k = num_of_dims_k
 
+        # save additional information
+        self.num_of_features_matrix_df = len(matrix_dataframe.index) 
+        self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
+        self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+
         # initialize the autoencoder
         print("initializing the autoencoder (this might take a while) ...")
         num_of_rows_in_matrix_df = len(matrix_dataframe.index)
         num_of_features = num_of_rows_in_matrix_df
+        num_of_columns_in_matrix_df = len(matrix_dataframe.columns)
         
         self.autoEncoder = self.return_trained_AE_net(in_features=num_of_features, z_dim=num_of_dims_k, device=device)
-        
 
         print("\n----- finished __init__ phase of  STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder -----\n")
 
 
     def __len__(self):
-        # 'Denotes the total number of samples (that actually have images attached to them'
-        return len(self.imageFolder)
+        # 'Denotes the total number of samples (that actually have images attached to them)' - see __init__
+        return self.size_of_dataset
 
 
     def __getitem__(self, index):

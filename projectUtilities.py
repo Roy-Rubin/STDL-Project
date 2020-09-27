@@ -16,10 +16,24 @@ def calculate_distance_between_matrices(matrix1,matrix2):
         # assumption: it means that it is a pandas object
         m2 = matrix1.to_numpy()
     assert m1.shape == m2.shape
-    distance = np.linalg.norm((m1-m2), 'fro')
+    '''
+    NOTE: !
+    np.linalg.norm(var)  
+    when no order is given to the method above, there are 2 cases:
+    if var is a vector, then calculate 2-norm
+    if var is a matrix, then calculate frobenius-norm
+    '''
+    temp = m1-m2
+    distance = np.linalg.norm(temp)  
     return distance
 
 
+def printInfoAboutDataset(dataset):
+    print(f'printing information about the dataset:')
+    print(f'size of the dataset (==number of images in the image folder) {dataset.size_of_dataset}')
+    print(f'num_of_samples_matrix_df in the dataset (==number of columns in matrix_dataframe) {dataset.num_of_samples_matrix_df}')
+    print(f'num_of_features_matrix_df in the dataset (==number of rows in matrix_dataframe) {dataset.num_of_features_matrix_df}')
+    
 
 def printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame):
     print("\nprint data regarding the dataframes:")
