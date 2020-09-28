@@ -4,7 +4,7 @@ from torch.utils.data import random_split
 import torchvision
 import numpy as np
 from sklearn.decomposition import NMF
-from deepNetworkArchitechture import ConvNet
+from deepNetworkArchitechture import ConvNet, AutoencoderNet
 from projectUtilities import calculate_distance_between_matrices, printInfoAboutDataset
 from matplotlib import pyplot as plt
 
@@ -154,7 +154,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
         #                      orig_matrix ~       W * H           ~ W * H_pred
-        M_fast_reconstruction = np.mm(ds_train.W, ds_train.H)
+        M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
         compare_matrices(M_truth, M_pred, M_fast_reconstruction)
 
         M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, W=ds_train.W, model=trained_model, device=device)
@@ -628,7 +628,7 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
             data = next(dl_iter)
             x = data  # x.shape should be (all_images_size, 3, 176, 176)
             # print(f'\n--delete-- x.shape {x.shape}')
-
+            x = x.float()  # needed to avoid errors of conversion
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
@@ -738,7 +738,7 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     # model
     connected_layers_dim_list = [100*z_dim, 10*z_dim, 5*z_dim]  #NOTE: this is without the first and last layers !
     print(f'note - number of (hidden) linear layers is supposed to be {len(connected_layers_dim_list)}')
-    model = deepNetworkArchitechture.AutoencoderNet(in_features=num_of_features, connected_layers_dim_list=connected_layers_dim_list, z_dim=z_dim, batch_size=batch_size, device=device)
+    model = AutoencoderNet(in_features=num_of_features, connected_layers_dim_list=connected_layers_dim_list, z_dim=z_dim, batch_size=batch_size, device=device)
     # TODO: this next if condition migt be temporarily commented because i get CUDA OUT OF MEMORY errors. (it shouldnt be commented)
     if device.type == 'cuda':
         model = model.to(device=device)  # 030920 test: added cuda

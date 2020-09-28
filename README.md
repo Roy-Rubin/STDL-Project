@@ -45,37 +45,24 @@
 
 ## Requirements
 
-> note that this is what i had on my computation node while performing the experiments
+> All of the requirements can be seen in the `environment.yml` file
 
-- python
-- pytorch
-- sklearn
-- pandas=1.0.4
-- numpy=1.18.5
-- torchvision
-Python 3.7.6
-numpy==1.18.5
-pandas==1.0.4
-scikit-image==0.17.2
-scikit-learn==0.23.1
-scipy==1.4.1
-torch = 1.3.0
-torchvision == 0.4.1a0+d94043a
-Pillow==7.2.0
-matplotlib==3.2.1
-opencv-python (cv2)==4.4.0.42
 
 ## How-to-use
 
 ### Step 1
 
 - **Install all required libraries**
-    - do that
+    - Preferably use conda to install the environment
+    - Use: `` to install the environment
+    ```shell
+    $ conda env create -f environment.yml
+    ```
 
 ### Step 2
 
 - **Run notebook**
-    - better performance when ran on a gpu
+    - preferably with jupyter lab
 
 ### Step 3
 
@@ -83,15 +70,14 @@ opencv-python (cv2)==4.4.0.42
     - better performance when ran on a gpu
 
 - **Consider using different hyperparameter values**
-    - better performance when ran on a gpu
+    - You can try for example to increase the amount of trainning epochs performed.
 
 ## FAQ
 
 - **How can I get the data ?**
-    - good question :smile: ?
+    - Please contact <a href="https://10xgenomics.com/" target="_blank">`10xgenomics`</a>. The data was acquired from their website.
 - **This or that doesnt work... what to do?**
-    - No problem! Just do this.
-- b
+    - No problem! Contact me for questions.
 
 ## Thanks
 
@@ -109,5 +95,5 @@ opencv-python (cv2)==4.4.0.42
 
 ## License
 
-- Data - 10x genomics (tag ?) (Credit ?)
+- Data acquired from <a href="https://10xgenomics.com/" target="_blank">`10xgenomics`</a> (tag ?) (Credit ?) 
 - Technion ?
