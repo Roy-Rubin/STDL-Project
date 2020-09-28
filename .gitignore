@@ -2,6 +2,7 @@
 ###################
 cs236781_hw2/
 cs236781_hw3/
+cs236781/
 spatialGeneExpressionData/
 
 # Files i dont want to commit #
@@ -9,3 +10,5 @@ spatialGeneExpressionData/
 *.sh
 *.idea
 *.ipynb_checkpoints
+*.png
+main.py

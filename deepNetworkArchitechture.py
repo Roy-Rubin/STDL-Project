@@ -31,7 +31,7 @@ class ConvNet(nn.Module):
         self.hidden_dims = hidden_dims
 
         self.feature_extractor = self._make_feature_extractor()
-        self.classifier = self._make_classifier()
+        self.predictor = self._make_predictor()
 
     def _make_feature_extractor(self):
         in_channels, in_h, in_w = tuple(self.in_size)  # C,H,W
@@ -39,8 +39,11 @@ class ConvNet(nn.Module):
         layers = []
 
         '''
-
-        [(CONV -> ReLU)*P -> MaxPool]*(N/P)
+        Structure:
+        if pools are wanted:
+                [(CONV -> ReLU)*P -> MaxPool]*(N/P)
+        or if no pools wanted:
+                (CONV -> ReLU)*N
 
         N is the total number of convolutional layers,
         P specifies how many convolutions to perform before each pooling layer
@@ -69,21 +72,23 @@ class ConvNet(nn.Module):
         seq = nn.Sequential(*layers)
         return seq
 
-    def _make_classifier(self):
+    def _make_predictor(self):
         in_channels, in_h, in_w, = tuple(self.in_size)
 
         layers = []
 
         '''
-        #  (Linear -> ReLU)*M -> Linear
+        Structure:
+                (Linear -> ReLU)*M -> Linear
+        
         #  we first need to calculate the number of features going in to the first linear layer.
         #  The last Linear layer has an output dim of out_classes.
 
         Note: 
         every convolution layer - could technically reduce the image size - but it will not because of the parameters we chose for Conv2d.
         FURTHERMORE: the number of channels in each layer, is a function ONLY of the number of filters (= the number of kernels)  
-        '''
-        '''
+        
+        Note:
         we want to calculate the starting_num_features to input to our classifier sequential.
         in order to do that, we need to calculate the size of last output from the convolution layers
         that can be achieved by finding out how many pools were performed - because for every pool, the original image's size
@@ -119,102 +124,102 @@ class ConvNet(nn.Module):
 
         features = self.feature_extractor(input=x)
         features_flattened = features.view(features.size(0), -1)  # -1 means inferring from other dimensions
-        out = self.classifier(features_flattened)  
+        out = self.predictor(features_flattened)  
 
         return out
 
 
-class EncoderCNN(nn.Module):  #TODO: note that this has not changed rom hw3. maybe needs to ? <--------------------------------------
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
+# class EncoderCNN(nn.Module):  #TODO: note that this has not changed rom hw3. maybe needs to ? <--------------------------------------
+#     def __init__(self, in_channels, out_channels):
+#         super().__init__()
 
-        modules = []
+#         modules = []
 
-        # TODO:
-        #  Implement a CNN. Save the layers in the modules list.
-        #  The input shape is an image batch: (N, in_channels, H_in, W_in).
-        #  The output shape should be (N, out_channels, H_out, W_out).
-        #  You can assume H_in, W_in >= 64.
-        #  Architecture is up to you, but it's recommended to use at
-        #  least 3 conv layers. You can use any Conv layer parameters,
-        #  use pooling or only strides, use any activation functions,
-        #  use BN or Dropout, etc.
+#         # TODO:
+#         #  Implement a CNN. Save the layers in the modules list.
+#         #  The input shape is an image batch: (N, in_channels, H_in, W_in).
+#         #  The output shape should be (N, out_channels, H_out, W_out).
+#         #  You can assume H_in, W_in >= 64.
+#         #  Architecture is up to you, but it's recommended to use at
+#         #  least 3 conv layers. You can use any Conv layer parameters,
+#         #  use pooling or only strides, use any activation functions,
+#         #  use BN or Dropout, etc.
 
-        # ====== YOUR CODE: ======
+#         # ====== YOUR CODE: ======
 
         
-        channels_list = [in_channels, 64, 128, 256, out_channels ,out_channels, out_channels, out_channels]
-        # channels_list = [in_channels, out_channels, out_channels, out_channels, out_channels ,out_channels, out_channels]
+#         channels_list = [in_channels, 64, 128, 256, out_channels ,out_channels, out_channels, out_channels]
+#         # channels_list = [in_channels, out_channels, out_channels, out_channels, out_channels ,out_channels, out_channels]
 
-        channels_list = [in_channels, 64, 64, 128, 128, 256, 256, out_channels]
+#         channels_list = [in_channels, 64, 64, 128, 128, 256, 256, out_channels]
 
-        N = len(channels_list) - 1
+#         N = len(channels_list) - 1
     
-        # from the feature extractor
-        # curr_channels = in_channels
-        for i in range(N):
-            modules.append(nn.Conv2d(in_channels=channels_list[i], out_channels=channels_list[i+1], kernel_size=6))
-            # curr_channels = out_channels
+#         # from the feature extractor
+#         # curr_channels = in_channels
+#         for i in range(N):
+#             modules.append(nn.Conv2d(in_channels=channels_list[i], out_channels=channels_list[i+1], kernel_size=6))
+#             # curr_channels = out_channels
             
-            modules.append(nn.BatchNorm2d(channels_list[i+1]))
-            modules.append(nn.LeakyReLU())
+#             modules.append(nn.BatchNorm2d(channels_list[i+1]))
+#             modules.append(nn.LeakyReLU())
 
-        # after the for loop
-        # modules.append(nn.Dropout2d(p=0.2))
-        # modules.append(nn.MaxPool2d(kernel_size=2))
+#         # after the for loop
+#         # modules.append(nn.Dropout2d(p=0.2))
+#         # modules.append(nn.MaxPool2d(kernel_size=2))
 
-        # ========================
-        self.cnn = nn.Sequential(*modules)
+#         # ========================
+#         self.cnn = nn.Sequential(*modules)
 
-    def forward(self, x):
-        return self.cnn(x)
+#     def forward(self, x):
+#         return self.cnn(x)
 
 
-class DecoderCNN(nn.Module): #TODO: note that this has not changed rom hw3. maybe needs to ? <--------------------------------------
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
+# class DecoderCNN(nn.Module): #TODO: note that this has not changed rom hw3. maybe needs to ? <--------------------------------------
+#     def __init__(self, in_channels, out_channels):
+#         super().__init__()
 
-        modules = []
+#         modules = []
 
-        # TODO:
-        #  Implement the "mirror" CNN of the encoder.
-        #  For example, instead of Conv layers use transposed convolutions,
-        #  instead of pooling do unpooling (if relevant) and so on.
-        #  The architecture does not have to exactly mirror the encoder
-        #  (although you can), however the important thing is that the
-        #  output should be a batch of images, with same dimensions as the
-        #  inputs to the Encoder were.
-        # ====== YOUR CODE: ======
+#         # TODO:
+#         #  Implement the "mirror" CNN of the encoder.
+#         #  For example, instead of Conv layers use transposed convolutions,
+#         #  instead of pooling do unpooling (if relevant) and so on.
+#         #  The architecture does not have to exactly mirror the encoder
+#         #  (although you can), however the important thing is that the
+#         #  output should be a batch of images, with same dimensions as the
+#         #  inputs to the Encoder were.
+#         # ====== YOUR CODE: ======
 
-        # modules.append(nn.MaxUnpool2d(kernel_size=2))
+#         # modules.append(nn.MaxUnpool2d(kernel_size=2))
 
-        channels_list = [in_channels, 256, 128, 64, out_channels ,out_channels, out_channels, out_channels]
-        # channels_list = [in_channels, out_channels, out_channels, out_channels, out_channels ,out_channels, out_channels]
+#         channels_list = [in_channels, 256, 128, 64, out_channels ,out_channels, out_channels, out_channels]
+#         # channels_list = [in_channels, out_channels, out_channels, out_channels, out_channels ,out_channels, out_channels]
 
-        channels_list = [in_channels, 256, 256, 128, 128, 64, 64, out_channels]
+#         channels_list = [in_channels, 256, 256, 128, 128, 64, 64, out_channels]
 
-        N = len(channels_list) - 1
+#         N = len(channels_list) - 1
 
-        # from the feature extractor
-        # curr_channels = in_channels
-        for i in range(N):
-            modules.append(nn.ConvTranspose2d(in_channels=channels_list[i], out_channels=channels_list[i+1], kernel_size=6))
-            # curr_channels = out_channels
-            modules.append(nn.BatchNorm2d(channels_list[i+1]))
-            #  modules.append(nn.LeakyReLU())
-            if i < N - 1:
-                modules.append(torch.nn.LeakyReLU())
+#         # from the feature extractor
+#         # curr_channels = in_channels
+#         for i in range(N):
+#             modules.append(nn.ConvTranspose2d(in_channels=channels_list[i], out_channels=channels_list[i+1], kernel_size=6))
+#             # curr_channels = out_channels
+#             modules.append(nn.BatchNorm2d(channels_list[i+1]))
+#             #  modules.append(nn.LeakyReLU())
+#             if i < N - 1:
+#                 modules.append(torch.nn.LeakyReLU())
 
-        # after the for loop
-        # modules.append(nn.Dropout2d(p=0.2))
+#         # after the for loop
+#         # modules.append(nn.Dropout2d(p=0.2))
 
-        # ========================
+#         # ========================
 
-        self.cnn = nn.Sequential(*modules)
+#         self.cnn = nn.Sequential(*modules)
 
-    def forward(self, h):
-        # Tanh to scale to [-1, 1] (same dynamic range as original images).
-        return torch.tanh(self.cnn(h))
+#     def forward(self, h):
+#         # Tanh to scale to [-1, 1] (same dynamic range as original images).
+#         return torch.tanh(self.cnn(h))
 
 
 class EncoderFullyConnected(nn.Module): 
