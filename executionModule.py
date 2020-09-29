@@ -151,24 +151,30 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         compare_matrices(M_truth, M_pred, None)
 
     elif dataset_name.startswith("NMF"):
-        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
-        # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
-        #                      orig_matrix ~       W * H           ~ W * H_pred
-        M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
-        compare_matrices(M_truth, M_pred, M_fast_reconstruction)
-
+        # perform comparisons on train data if this is not the augmented DS
+        if "augmented" not in dataset_name:
+            M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
+            # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
+            #                      orig_matrix ~       W * H           ~ W * H_pred
+            M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
+            compare_matrices(M_truth, M_pred, M_fast_reconstruction)
+        
+        # perform on test data
         M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, W=ds_train.W, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
         compare_matrices(M_truth, M_pred, None)
         
     elif dataset_name.startswith("AE"):
-        M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_train, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
-        # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
-        #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
-        M_fast_reconstruction = getAutoEncoder_M_fast_reconstruction(dataset=ds_train, model=trained_model, device=device)
-        compare_matrices(M_truth, M_pred, M_fast_reconstruction)
+         # perform comparisons on train data if this is not the augmented DS
+        if "augmented" not in dataset_name:
+            M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_train, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
+            # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
+            #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
+            M_fast_reconstruction = getAutoEncoder_M_fast_reconstruction(dataset=ds_train, model=trained_model, device=device)
+            compare_matrices(M_truth, M_pred, M_fast_reconstruction)
 
+        # perform on test data
         M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_test, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
@@ -649,7 +655,6 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
             
             # delete vectors used from the GPU
             del x
-            del y 
             # finished loop
     
     '''
@@ -658,6 +663,7 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
     M_fast_reconstruction = result
 
     # assert equal sizes
+    print(f'--delete-- verify:  M_fast_reconstruction.shape {M_fast_reconstruction.shape}  ~  M_truth.shape {M_truth.shape}')
     assert M_fast_reconstruction.shape == dataset.matrix_dataframe.to_numpy().shape
 
     print("\n----- finished function getAutoEncoder_M_fast_reconstruction -----")
