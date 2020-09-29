@@ -50,12 +50,6 @@ def printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame):
     # df.min().min()   or   df.to_numpy().min()
     print(
         f'\nmin value in matrix_dataframe {matrix_dataframe.min().min()} max value in matrix_dataframe {matrix_dataframe.max().max()}')
-    # df_min_value = matrix_dataframe.min().min()
-    # df_max_value = matrix_dataframe.max().max()
-    # print(
-    #     f'\nmin value in matrix_dataframe {df_min_value} appears {list(matrix_dataframe.to_numpy().flatten).count(df_min_value)} times;')
-    # print(
-    #     f'max value in matrix_dataframe {df_max_value} appears {list(matrix_dataframe.to_numpy().flatten).count(df_max_value)} times')
     import numpy as np
     print(
         f'\nmedian value in matrix_dataframe {np.median(matrix_dataframe.values)} mean value in matrix_dataframe {np.mean(matrix_dataframe.values)}')
@@ -77,34 +71,6 @@ def printInfoAboutDFs(matrix_dataframe, features_dataframe, barcodes_datafame):
         print(f'{index+1}: the value {value} appeared {num_of_apearences} times (constitutes {(num_of_apearences/num_of_values_in_matrix)*100:.5f}% of the matrix values)') 
         # "":.5f" rounds to 00.00000
 
-    #TODO: print(f'\nplotting a scatter plot of all values in matrix_dataframe (to see the distribution of values)')
-
-    #TODO: do this : create a plot of all the data !
-    # import matplotlib.pyplot as plt
-    # plt.hist(one_big_list_of_values_from_matrix_df, density=False, bins=number_of_bins)  # `density=False` would make counts
-    # plt.ylabel('what is y')
-    # plt.xlabel('what is x')
-    # plt.title('Histogram (allegedly)')
-    # plt.show()
-    # import seaborn as sns
-    # # sns.distplot(one_big_list_of_values_from_matrix_df)
-    # # plt.show()
-    # sns.countplot(data=matrix_dataframe)
-    # plt.show()
-
-    # # testing "tolist()" property
-    # feature_ids = features_dataframe['feature_ids'].tolist()
-    # gene_names = features_dataframe['gene_names'].tolist()
-    # feature_types = features_dataframe['feature_types'].tolist()
-    # print()
-    # print(f'feature_ids size {len(feature_ids)}')
-    # print(f'feature_ids first 5 are: {feature_ids[0:5]}')
-    # print(f'gene_names size {len(gene_names)}')
-    # print(f'gene_names first 5 are: {gene_names[0:5]}')
-    # print(f'feature_types size {len(feature_types)}')
-    # print(f'feature_types first 5 are: {feature_types[0:5]}')
-    # print(f'barcodes size {len(barcodes)}')
-    # print(f'barcodes first 5 are: {barcodes[0:5]}')
     pass
 
 
@@ -117,12 +83,6 @@ def printInfoAboutReducedDF(matrix_dataframe):
     # df.min().min()   or   df.to_numpy().min()
     print(
         f'\nmin value in matrix_dataframe {matrix_dataframe.min().min()} max value in matrix_dataframe {matrix_dataframe.max().max()}')
-    # df_min_value = matrix_dataframe.min().min()
-    # df_max_value = matrix_dataframe.max().max()
-    # print(
-    #     f'\nmin value in matrix_dataframe {df_min_value} appears {list(matrix_dataframe.to_numpy().flatten).count(df_min_value)} times;')
-    # print(
-    #     f'max value in matrix_dataframe {df_max_value} appears {list(matrix_dataframe.to_numpy().flatten).count(df_max_value)} times')
     import numpy as np
     print(
         f'\nmedian value in matrix_dataframe {np.median(matrix_dataframe.values)} mean value in matrix_dataframe {np.mean(matrix_dataframe.values)}')
@@ -143,34 +103,6 @@ def printInfoAboutReducedDF(matrix_dataframe):
         print(f'{index+1}: the value {value} appeared {num_of_apearences} times (constitutes {(num_of_apearences/num_of_values_in_matrix)*100:.5f}% of the matrix values)') 
         # "":.5f" rounds to 00.00000
 
-    #TODO: print(f'\nplotting a scatter plot of all values in matrix_dataframe (to see the distribution of values)') 
-
-    #TODO: do this : create a plot of all the data !
-    # import matplotlib.pyplot as plt
-    # plt.hist(one_big_list_of_values_from_matrix_df, density=False, bins=number_of_bins)  # `density=False` would make counts
-    # plt.ylabel('what is y')
-    # plt.xlabel('what is x')
-    # plt.title('Histogram (allegedly)')
-    # plt.show()
-    # import seaborn as sns
-    # # sns.distplot(one_big_list_of_values_from_matrix_df)
-    # # plt.show()
-    # sns.countplot(data=matrix_dataframe)
-    # plt.show()
-
-    # # testing "tolist()" property
-    # feature_ids = features_dataframe['feature_ids'].tolist()
-    # gene_names = features_dataframe['gene_names'].tolist()
-    # feature_types = features_dataframe['feature_types'].tolist()
-    # print()
-    # print(f'feature_ids size {len(feature_ids)}')
-    # print(f'feature_ids first 5 are: {feature_ids[0:5]}')
-    # print(f'gene_names size {len(gene_names)}')
-    # print(f'gene_names first 5 are: {gene_names[0:5]}')
-    # print(f'feature_types size {len(feature_types)}')
-    # print(f'feature_types first 5 are: {feature_types[0:5]}')
-    # print(f'barcodes size {len(barcodes)}')
-    # print(f'barcodes first 5 are: {barcodes[0:5]}')
     pass
 
 

@@ -32,22 +32,22 @@ def load_dataframes_from_mtx_and_tsv_new(path_to_mtx_tsv_files_dir):
     print("\n----- entered function load_dataframes_from_mtx_and_tsv -----")
 
     print("started reading features.tsv")
-    path_to_features = path_to_mtx_tsv_files_dir + "/features.tsv"  # TODO: note no gz
+    path_to_features = path_to_mtx_tsv_files_dir + "/features.tsv"  
     features_dataframe = pd.read_csv(path_to_features, sep='\t', header=None)
     features_dataframe.columns = ['feature_ids', 'gene_names', 'feature_types']  # giving columns their names
     print("V  finished reading features.tsv")
 
     print("started reading barcodes.tsv")
-    path_to_barcodes = path_to_mtx_tsv_files_dir + "/barcodes.tsv"  # TODO: note no gz
+    path_to_barcodes = path_to_mtx_tsv_files_dir + "/barcodes.tsv"  
     barcodes_dataframe = pd.read_csv(path_to_barcodes, sep='\t', header=None)
     barcodes_dataframe.columns = ['barcodes']  # giving columns their names
     print("V  finished reading barcodes.tsv")
     barcodes = barcodes_dataframe['barcodes'].tolist()
 
     print("started reading matrix.mtx. this might take some time ...")
-    path_to_matrix = path_to_mtx_tsv_files_dir + "/matrix.mtx"  # TODO: note no gz
+    path_to_matrix = path_to_mtx_tsv_files_dir + "/matrix.mtx"  
     matrix = scipy.io.mmread(path_to_matrix)
-    matrix_dataframe = pd.DataFrame.sparse.from_spmatrix(matrix)  # todo: note sure this works. from: https://pandas.pydata.org/docs/user_guide/sparse.html
+    matrix_dataframe = pd.DataFrame.sparse.from_spmatrix(matrix)  # NOTE: from: https://pandas.pydata.org/docs/user_guide/sparse.html
     print("V  finished reading matrix.mtx")
 
     # testing 230920 morning
@@ -267,42 +267,6 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
     return final_dataset_object
 
 
-def cut_genes_with_under_B_counts(orig_df, Base_value):  # TODO: might want to delete later
-    '''
-    recieve a matrix df, cut all  genes with under Base_value counts in the original matrix_dataframe 
-    == keep all genes with over Base_value counts
-    return: 1. the reduced dataframe
-            2. indices of all rows that were kept (for research purpose later on)
-
-    assumption: genes (features) are the rows of the df, samples are the columns
-    '''
-    print(f'cutting all genes (rows) that contain less than B counts ...')
-    # trick from stack overflow to keep all rows that have at least one nonzero value
-    reduced_df = orig_df[orig_df.sum(axis=1) > Base_value]
-    indices_of_kept_rows = list(reduced_df.index.values)
-    reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
-    reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
-    mapping = reduced_df[["original_index_from_matrix_dataframe"]]
-    reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
-
-    # # print information if requested by user
-    # yes = {'yes','y', 'ye', '','YES','YE','Y'} # raw_input returns the empty string for "enter"
-    # no = {'no','n','NO','N'}
-    # # get input from user
-    # choice = input("Do you wish to print information about the reduced dataframe ? [yes/no]")  
-    # if choice in yes:
-    #     projectUtilities.printInfoAboutReducedDF(reduced_df)
-    # elif choice in no:
-    #     pass
-    # else:
-    #     print("since you did not input a yes, thats a no :)")
-
-    # projectUtilities.printInfoAboutReducedDF(reduced_df)
-
-    # return 
-    return reduced_df, mapping 
-
-
 def cut_genes_with_under_B_counts_from_train_and_test(train_df, test_df, Base_value):
     '''
     recieve 2 matrix df, cut all genes with under Base_value counts in the original matrix_dataframe 
@@ -345,7 +309,6 @@ def cut_genes_with_under_B_counts_from_train_and_test(train_df, test_df, Base_va
     reduced_df_train = reduced_df_train.drop(columns=["original_index_from_matrix_dataframe"])
     reduced_df_test = reduced_df_test.drop(columns=["original_index_from_matrix_dataframe"])
     
-    # print(f'--delete-- final number of columns train {len(reduced_df_train.columns)} test {len(reduced_df_test.columns)} final number of rows for both {len(reduced_df_test.index)}')
     # return 
     return reduced_df_train, reduced_df_test, mapping 
 
@@ -368,43 +331,6 @@ def perform_log_1p_normalization(df):
     # # print if wanted
     # projectUtilities.printInfoAboutReducedDF(df_normalized)
     return df_normalized
-
-
-def cut_samples_with_no_matching_image(matrix_df, image_folder_of_the_df, barcodes_df): #TODO: might be OK to delete this
-    '''
-    cut the samples (columns) from the given matrix dataframe that do not have matching images in the given image folder
-    NOTE: important assumption: this function should not recieve the augmented image folder, only the regular one
-    '''
-    print(f'cutting samples that dont have mathching images in the image folder from the dataframe ...')
-
-    # verify that this is a regular (and not augmented) image folder
-    if not hasattr(image_folder_of_the_df, 'samples'):  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
-        raise NameError(' wrong image folder type... insert the regular, not augmented one ')
-    
-    # get indices of samples that DO exist in the image folder
-    column_list = []
-    for element in image_folder_of_the_df.samples:
-        filename = element[0]
-        curr_sample_name = filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
-        output_indices_list = barcodes_df.index[barcodes_df['barcodes'] == curr_sample_name].tolist() #returns list of size 1
-        curr_sample_name_index_in_barcoes_df = output_indices_list[0]
-        column_list.append(curr_sample_name_index_in_barcoes_df)
-
-    # save a mapping between the indices, and save the updated dataframe
-    updated_df = matrix_df.iloc[:,column_list] # keep only the wanted columns from the dataframe
-    mapping = updated_df.T.reset_index(drop=False) # creates an index column
-    mapping = mapping.rename(columns={"index": "original_index_from_matrix_dataframe"})  
-    mapping = mapping['original_index_from_matrix_dataframe']
-    mapping = pd.DataFrame(data=mapping, columns=['original_index_from_matrix_dataframe']) # convert it from a pandas series to a pandas df
-
-    # reset columns' indices
-    temp_len = len(updated_df.columns)
-    new_columns_index_list = list(range(0,temp_len))
-    updated_df.columns = new_columns_index_list
-    # return both updated_df and mapping
-    column_mapping = mapping  # for me
-    print(f'V   done :)\n')
-    return updated_df, column_mapping
 
 
 def cut_samples_with_no_matching_image_and_reorder_df(matrix_df, image_folder_of_the_df, barcodes_df):
@@ -458,23 +384,6 @@ def cut_samples_with_no_matching_image_and_reorder_df(matrix_df, image_folder_of
     temp_columns_index_list = list(range(0,temp_len))
     updated_df.columns = temp_columns_index_list
 
-    # TODO: if this block is deleted, then some variables above can be deleted ! such as `list_of_index_tuples`
-    # # update the `list_of_index_tuples` to containg our mapping and create our new reordered index list
-    # # and get a final list for the column reordering
-    # for element in list_of_index_tuples:
-    #     # reminder: our goal is to make every element: (index in image folder, column index in the orig df, column index in the new df) 
-    #     # and currently the third entry in the list is -1
-    #     element[2] = mapping.index[mapping['original_index_from_matrix_dataframe'] == element[1]].item() # assumption: only one item is returned
-    # pass
-    # # NOTE: assumption - list_of_index_tuples is sorted by the element[0] in each element - see where it is created and how elements are appended.
-    # #                    this also means, that `final_column_index_list` might not be ordered in an ascending order. if not, later on the line
-    # #                    `updated_df.columns = temp_columns_index_list` will reset the indices to 0-n and in particular - an ascending order.
-    # final_column_index_list = [index for _,_,index in list_of_index_tuples]
-
-    # # reorder the dataframes columns, and then set the indices back to "0-n"
-    # updated_df = updated_df[final_column_index_list] #!!! this is the reordering command. could also use: `updated_df = updated_df.reindex(columns=final_column_index_list)`
-    # # updated_df.columns = temp_columns_index_list # this resets the indices to 0-n  #TODO: this line might not be needed. need to verify
-
     # return both updated_df and mapping
     column_mapping = mapping  # for me
     print(f'V   done :)\n')
@@ -505,20 +414,9 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         create the reduced dataframe == a dataframe with only one row
         '''
         # get the y value's ROW in the gene expression matrix MTX (with help from the features df)
-        # # test 270920 #TODO: might not be needed
-        # output_indices_list = self.features_dataframe.index[self.features_dataframe['gene_names'] == self.gene_name].tolist()
-        # assert (len(output_indices_list) == 1)
-        # curr_gene_name_index_in_features_df = output_indices_list[0]
-        # row_in_original_dataframe = curr_gene_name_index_in_features_df
-        # # test 270920 # end
         row_in_original_dataframe = self.features_dataframe.index[self.features_dataframe['gene_names'] == self.gene_name].item() # assumption: only one item is returned
     
         # this row number needs to be transformed with the mapping because some rows were deleted
-        # # test 270920 #TODO: might not be needed
-        # row = self.row_mapping.index[self.row_mapping['original_index_from_matrix_dataframe'] == row_in_original_dataframe].tolist()
-        # assert (len(row) == 1)  # there should be only one of these
-        # row = row[0]  # list of size 1
-        # # test 270920 # end
         row = self.row_mapping.index[self.row_mapping['original_index_from_matrix_dataframe'] == row_in_original_dataframe].item() # assumption: only one item is returned
 
 
@@ -557,23 +455,11 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
 
         # get the y value's COLUMN in the gene expression matrix df (with help from the barcodes df)
-        # # test 270920 #TODO: might not be needed        
-        # temp_indices_list = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].tolist() #returns a list with 1 item in it
-        # curr_sample_name_index_in_barcoes_df = temp_indices_list[0]
-        # column = self.column_mapping[curr_sample_name_index_in_barcoes_df]
-        # # end test 270920 
         index_in_barcoes_df = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].item() # assumption: only 1 item is returned
         column = self.column_mapping.index[self.column_mapping['original_index_from_matrix_dataframe'] == index_in_barcoes_df].item() # assumption: only one item is returned
 
         # get the y value's ROW in the gene expression matrix MTX 
         current_gene_expression_value = self.matrix_dataframe.iloc[self.row, column]
-
-        # TODO: the block below might not be needed
-        # NOTE: there should be only one row in the reduced dataframe -
-        #       and when this happens then the dataframe is transpoed and columns become rows
-        #       and so to get the index at column C its as if we need to get info from row C
-        #       and since now after transpose there is only 1 column, then the iloc on the entire row returns only 1 value
-        # current_gene_expression_value = self.reduced_dataframe.iloc[[column]]
 
         # for me
         y = current_gene_expression_value
@@ -616,10 +502,7 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         list_of_nlargest_indices = list(nlargest_variance_df.index.values) 
         # save it for future reference
         self.list_of_nlargest_indices = list_of_nlargest_indices
-        # #save 
-        # TODO: previously (changed 220920 evening)
-        #self.reduced_dataframe = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns         
-        # new:
+        # #save  
         reduced_df = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
         reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
         reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
@@ -657,11 +540,6 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
 
         # get the y value's COLUMN in the gene expression matrix df (with help from the barcodes df)
-        # # test 270920 #TODO: might not be needed        
-        # temp_indices_list = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].tolist() #returns a list with 1 item in it
-        # curr_sample_name_index_in_barcoes_df = temp_indices_list[0]
-        # column = self.column_mapping[curr_sample_name_index_in_barcoes_df]
-        # # end test 270920 
         index_in_barcoes_df = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].item() # assumption: only 1 item is returned
         column = self.column_mapping.index[self.column_mapping['original_index_from_matrix_dataframe'] == index_in_barcoes_df].item() # assumption: only one item is returned
 
@@ -674,7 +552,6 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         # convert to a tensor
         y = torch.from_numpy(y.to_numpy()).float()  # assumption: currently "y" is a pandas series (\dataframe) slice, and needs to be converted to a tensor for later usage
         assert (len(y) == self.num_of_dims_k)
-        # TODO: check: currently y is a numpy ndarray type. does it need to be switched to a tensor type ??? <-----------------------------------
 
         return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
 
@@ -701,7 +578,7 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
 
         # create the reduced dataframe:
         print("performing NMF decomposition on main matrix dataframe ...")
-        self.nmf_model = NMF(n_components=num_of_dims_k, init='random', random_state=0)  # TODO: what init should we use here ?
+        self.nmf_model = NMF(n_components=num_of_dims_k, init='random', random_state=0)  # TODO: is this the best init type ?
         self.W = self.nmf_model.fit_transform(matrix_dataframe)  # TODO: check if we need a "fit transform" here or not
         self.H = self.nmf_model.components_
         # !!! create the reduced dataframe !!!
@@ -745,11 +622,6 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
         curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
 
         # get the y value's COLUMN in the gene expression matrix df (with help from the barcodes df)
-        # # test 270920 #TODO: might not be needed        
-        # temp_indices_list = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].tolist() #returns a list with 1 item in it
-        # curr_sample_name_index_in_barcoes_df = temp_indices_list[0]
-        # column = self.column_mapping[curr_sample_name_index_in_barcoes_df]
-        # # end test 270920 
         index_in_barcoes_df = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].item() # assumption: only 1 item is returned
         column = self.column_mapping.index[self.column_mapping['original_index_from_matrix_dataframe'] == index_in_barcoes_df].item() # assumption: only one item is returned
 
@@ -763,7 +635,6 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
         # convert to a tensor
         y = torch.from_numpy(y.to_numpy()).float()  # assumption: currently "y" is a pandas series (\dataframe) slice, and needs to be converted to a tensor for later usage
         assert (len(y) == self.num_of_dims_k)
-        # TODO: check: currently y is a numpy ndarray type. does it need to be switched to a tensor type ??? <-----------------------------------
 
         return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
 
@@ -797,7 +668,6 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         num_of_features = num_of_rows_in_matrix_df
         num_of_columns_in_matrix_df = len(matrix_dataframe.columns)
         
-        # self.autoEncoder = self.return_trained_AE_net(in_features=num_of_features, z_dim=num_of_dims_k, device=device) #TODO: might delete later because i get from outside
         self.autoEncoder = AEnet
 
         print("\n----- finished __init__ phase of  STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder -----\n")
@@ -835,11 +705,6 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
 
         # get the y value's COLUMN in the gene expression matrix df (with help from the barcodes df)
-        # # test 270920 #TODO: might not be needed        
-        # temp_indices_list = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].tolist() #returns a list with 1 item in it
-        # curr_sample_name_index_in_barcoes_df = temp_indices_list[0]
-        # column = self.column_mapping[curr_sample_name_index_in_barcoes_df]
-        # # end test 270920 
         index_in_barcoes_df = self.barcodes_dataframe.index[self.barcodes_dataframe['barcodes'] == curr_sample_name].item() # assumption: only 1 item is returned
         column = self.column_mapping.index[self.column_mapping['original_index_from_matrix_dataframe'] == index_in_barcoes_df].item() # assumption: only one item is returned
 
@@ -849,126 +714,13 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         # convert it to torch
         vector_with_all_features = torch.from_numpy(vector_with_all_features).float().cuda()  #NOTE: note the cuda here !!!
         # encode the vector == convert to a z dimensional latent vector
-        latent_vector = self.autoEncoder.encodeWrapper(vector_with_all_features)            #TODO: maybe the vector is numpy and needs to be converted to a tensor
+        latent_vector = self.autoEncoder.encodeWrapper(vector_with_all_features)   
 
         # for me
         y = latent_vector.squeeze()  # note the squeeze ! this is relevant because the batch size  of "latent_vector" is 1
         assert (len(y) == self.num_of_dims_k)
-        # TODO: check: currently y is a numpy ndarray type. does it need to be switched to a tensor type ??? <-----------------------------------
 
         return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
-
-
-    # def return_trained_AE_net(self, in_features, z_dim, device):  # TODO: if not needed, delete later !
-    #     '''
-    #     trains the AE net on the matrix dataframe
-    #     returns the trained autoencoder model
-    #     '''
-
-    #     print("\n----- entered function return_trained_AE_net -----")
-
-    #     '''
-    #     prep our dataset and dataloaders
-    #     '''
-    #     batch_size = 1  # this number was reduced because the server was busy and i got CUDA OUT OF MEMORY. need to increase later
-    #                     # IMPORTANT NOTE ON THE BATCH SIZE !!!
-    #                     # at first it was a high number, but due to lack of memory was reduced to 5, which worked.
-    #                     # then, I found out that if the batch size is not 1, i cannot use the networks encoder network inside AEnet
-    #                     # because is expects 33K features * 5 batch_size as input - but in __get_item__ (which is the entire end goal of our current method)
-    #                     # we only get one item at a time.... and so - batch size was changed to 1.
-    #                     # later on, this can be improved.
-    #     dataset = self.dataset_from_matrix_df
-    #     dataloader = DataLoader(dataset, batch_size, shuffle=True)
-    #     x0 = dataset[0]
-    #     num_of_features = len(x0)
-
-    #     '''
-    #     prepare model, loss and optimizer instances
-    #     '''
-
-    #     # model
-    #     connected_layers_dim_list = [100*z_dim, 10*z_dim, 5*z_dim]  #NOTE: this is without the first and last layers !
-    #     print(f'note - number of (hidden) linear layers is supposed to be {len(connected_layers_dim_list)}')
-    #     model = deepNetworkArchitechture.AutoencoderNet(in_features=num_of_features, connected_layers_dim_list=connected_layers_dim_list, z_dim=z_dim, batch_size=batch_size, device=device)
-    #     # TODO: this next if condition migt be temporarily commented because i get CUDA OUT OF MEMORY errors. (it shouldnt be commented)
-    #     if device.type == 'cuda':
-    #         model = model.to(device=device)  # 030920 test: added cuda
-        
-    #     # loss and optimizer
-    #     loss_fn = torch.nn.MSELoss()
-    #     learning_rate = 1e-4  #TODO: need to play with this value ....
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-    #     '''
-    #     now we can perform the training
-    #     '''
-
-    #     print("****** begin training ******")
-    #     num_of_epochs = 3  # TODO: this number was lowered since i dont have alot of time to play around :)
-    #     max_alowed_number_of_batches = 999999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
-    #     num_of_batches = (len(dataset) // batch_size)  # TODO: check this line
-    #     if num_of_batches > max_alowed_number_of_batches:
-    #         print(f'NOTE: in order to speed up training (while damaging accuracy) the number of batches per epoch was reduced from {num_of_batches} to {max_alowed_number_of_batches}')
-    #         num_of_batches = max_alowed_number_of_batches
-
-
-    #     # note 2 loops here: external and internal
-    #     for iteration in range(num_of_epochs):
-    #         print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
-            
-    #         # init variables for external loop
-    #         dl_iter = iter(dataloader)  # iterator over the dataloader. called only once, outside of the loop, and from then on we use next() on that iterator
-    #         loss_values_list = []
-
-    #         for batch_index in range(num_of_batches):
-    #             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
-    #             # get current batch data 
-    #             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
-    #             #
-    #             x = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25
-    #             x = x.float()  # needed to avoid errors of conversion
-    #             if device.type == 'cuda':
-    #                 x = x.to(device=device)  
-
-    #             # Forward pass: compute predicted y by passing x to the model.
-    #             x_reconstructed = model(x)  
-    #             if device.type == 'cuda':
-    #                 x_reconstructed = x_reconstructed.to(device=device)
-                
-            
-    #             # Compute (and print) loss.
-    #             loss = loss_fn(x_reconstructed, x)  # TODO: check order and correctness
-    #             loss_values_list.append(loss.item())
-
-    #             # Before the backward pass, use the optimizer object to zero all of the
-    #             # gradients for the variables it will update (which are the learnable
-    #             # weights of the model). This is because by default, gradients are
-    #             # accumulated in buffers( i.e, not overwritten) whenever .backward()
-    #             # is called. Checkout docs of torch.autograd.backward for more details.
-    #             optimizer.zero_grad()
-
-    #             # Backward pass: compute gradient of the loss with respect to model parameters
-    #             loss.backward()
-
-    #             # Calling the step function on an Optimizer makes an update to its parameters
-    #             optimizer.step()
-
-    #         #end of inner loop
-    #         print(f'\nfinished inner loop.\n')
-
-    #         # # verification prints:
-    #         # print(f'loss_values_list len {len(loss_values_list)}')
-    #         # print(f'loss_values_list is {loss_values_list}')
-
-    #         # data prints on the epoch that ended
-    #         print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
-    #         print(f'               average loss {np.mean(loss_values_list)}')
-
-    #     pass
-    #     print("\n----- finished function return_trained_AE_net -----\n")
-
-    #     # return the trained model TODO: check this is the correct syntax
-    #     return model
 
 
 class STDL_Dataset_matrix_df_for_AE_init(torch.utils.data.Dataset):
@@ -1058,7 +810,7 @@ def create_smaller_images_from_biopsy_sample(path_to_dir):
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 
-    ## TODO - get from "scalefactors_json" file.
+    ## TODO - get from "scalefactors_json" file. (leon's note)
     # diameter & diameter for image 
     spot_diameter_fullres = 177.4829519178534
     spot_radius = int(spot_diameter_fullres/2)

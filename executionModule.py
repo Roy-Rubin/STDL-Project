@@ -24,15 +24,15 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
     if device.type == 'cuda':
         model = model.to(device=device) 
     
-    # print info for user:
-    # print(f'recieved model {model}\nrecieved loss_fn {loss_fn}\nrecieved optimizer {optimizer}\nrecieved num_of_epochs_wanted {num_of_epochs_wanted}\nrecieved max_alowed_number_of_batches {max_alowed_number_of_batches}')
-
     # compute actual number of batches to train on in each epoch
-    num_of_batches = (len(ds_train) // dl_train.batch_size)  # TODO: check this line
+    num_of_batches = (len(ds_train) // dl_train.batch_size)
     if num_of_batches > max_alowed_number_of_batches:
         print(f'NOTE: in order to speed up training (while damaging accuracy) the number of batches per epoch was reduced from {num_of_batches} to {max_alowed_number_of_batches}')
         num_of_batches = max_alowed_number_of_batches
-
+    else:
+        # make sure there are no leftover datapoints not used because of "//"" calculation above
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1  #TODO: verify
 
     '''
     BEGIN TRAINING !!!
@@ -57,27 +57,16 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-                # y = y.float() # TODO: check if this is needed
                 y = y.to(device=device)
             
             # Forward pass: compute predicted y by passing x to the model.
             y_pred = model(x)  
             
             # load to device
-            if device.type == 'cuda':  # TODO: check if this is needed
-                # y_pred = y_pred.float() # TODO: check if this is needed
-                y_pred = y_pred.squeeze() # TODO: check if this is needed #NOTE !!!!!!! probably needed for the single gene prediction later on
-                # y_pred = y_pred.to(device=device) # TODO: check if this is needed
-
-            # TODO: next block might not be needed
-            # # checking for same values in the predcition y_pred as in ground truth y:
-            # # first, flatten the vectors, and ROUND THE VALUES ! NOTE !!!!!
-            # y_pred_rounded_flattened = torch.round(y_pred).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
-            # y_rounded_flattened = torch.round(y).type(torch.int).flatten()  #TODO: note this rounding process to the closest iteger !
-            # # print(f'--delete-- y.shape {y.shape}, y_pred.shape {y_pred.shape}, y_pred_rounded.shape {y_pred_rounded.shape}')
+            y_pred = y_pred.squeeze() #NOTE !!!!!!! probably needed for the single gene prediction later on
 
             # Compute (and save) loss.
-            loss = loss_fn(y_pred, y)  # todo: check order
+            loss = loss_fn(y_pred, y) 
             loss_values_list.append(loss.item())
 
             # Before the backward pass, use the optimizer object to zero all of the gradients for the variables it will update (which are the learnable
@@ -91,8 +80,8 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             # Calling the step function on an Optimizer makes an update to its parameters
             optimizer.step()
 
-            # delete unneeded tesnors from GPU to save space #TODO: need to check that this code works
-            del x, y, y_pred #TODO: i commented out `y_pred = y_pred.to(device=device)` earlier. if so, is `del y_pred` needed ?
+            # delete unneeded tesnors from GPU to save space
+            del x, y
 
         #end of inner loop
         print(f'\nfinished inner loop.')
@@ -140,7 +129,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     '''
     Test the model and print comparisons
     '''
-    ### important NOTE!  first 2 exps use ONLY ds_test, the 2 last ones use both train and test !!!!!!!!!!!! TODO verify this is OK
+    ### important NOTE!  first 2 exps use ONLY ds_test, the 2 last ones use both train and test !!!!!!!!!!!! 
 
     if dataset_name.startswith("single_gene"):
         M_truth, M_pred = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device, model_name=model_name, dataset_name=dataset_name) # note that this function saves a figure
@@ -189,15 +178,8 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
 
 def compare_matrices(M_truth, M_pred, M_fast_reconstruction=None): #note the None if not needed
     # TODO: might need to move to utilities
-    print(f'TODO: print comparison of error results')  #TODO !
     '''
-    method 1 - compare identical elements
-    '''
-    # # trick to get num of identical elements between 2 NUMPY arrays 
-    # number_of_identical_elements = np.sum(y0_groundtruth_prepared == y0_pred_prepared) 
-    # print(f'corret prediction after dimensionality restoration: {number_of_identical_elements} out of {len(y0_ground_truth_all_dims)}')
-    '''
-    method 2 - calculate distance between matrices
+    method - calculate distance between matrices
     '''
     error1 = calculate_distance_between_matrices(M_truth, M_pred)
     error2 = calculate_distance_between_matrices(M_truth, M_fast_reconstruction)
@@ -255,13 +237,10 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
-            # print(f'\n--delete-- x.shape {x.shape}')
 
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-                # y = y.float()  #TODO delete ?
-                # y = y.to(device=device)   #TODO delete ?
         
             '''
             feed data to model to get K dim result
@@ -279,24 +258,19 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
             
             # delete vectors used from the GPU
             del x
-            # del y   #TODO delete ?
             # finished loop
-
 
     '''
     ***
     '''
     # get M_pred
-    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension
-    # M_pred = y_pred.cpu().detach().numpy() # TODO: this is the version BEFORE 230920
-    M_pred = y_pred_final # TODO: this is the version AFTER 230920
+    M_pred = y_pred_final 
     # get M_truth
-    M_truth = dataset.reduced_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
+    M_truth = dataset.reduced_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 18070~ after reduction) from the original dataframe
     # assert equal sizes
     M_truth = M_truth.transpose()  #NOTE the transpose here to match the shapes !!!
     M_pred = M_pred.squeeze()
     M_truth = M_truth.squeeze()
-    print(f'--delete-- verify:  M_pred.shape {M_pred.shape}  ~  M_truth.shape {M_truth.shape}')
     assert M_pred.shape == M_truth.shape
 
     '''
@@ -361,13 +335,10 @@ def getKDimPrediction(dataset, model, device):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
-            # print(f'\n--delete-- x.shape {x.shape}')
 
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-                # y = y.float()   #TODO delete ?
-                # y = y.to(device=device)   #TODO delete ?
         
             '''
             feed data to model to get K dim result
@@ -385,24 +356,19 @@ def getKDimPrediction(dataset, model, device):
             
             # delete vectors used from the GPU
             del x
-            # del y   #TODO delete ?
             # finished loop
-
 
     '''
     ***
     '''
     # get M_pred
-    # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension
-    # M_pred = y_pred.cpu().detach().numpy() # TODO: this is the version BEFORE 230920
-    M_pred = y_pred_final # TODO: this is the version AFTER 230920
+    M_pred = y_pred_final 
     # get M_truth
     M_truth = dataset.reduced_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
     # assert equal sizes
     M_truth = M_truth.transpose()  #NOTE the transpose here to match the shapes !!!
     M_pred = M_pred.squeeze()
     M_truth = M_truth.squeeze()
-    print(f'--delete-- verify:  M_pred.shape {M_pred.shape}  ~  M_truth.shape {M_truth.shape}')
     assert M_pred.shape == M_truth.shape
 
 
@@ -447,13 +413,10 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
-            # print(f'\n--delete-- x.shape {x.shape}')
 
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-                # y = y.float()  #TODO delete ?
-                # y = y.to(device=device)  #TODO delete ?
         
             '''
             feed data to model to get K dim result
@@ -471,7 +434,6 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
             
             # delete vectors used from the GPU
             del x
-            # del y   #TODO delete ?
             # finished loop
 
     '''
@@ -483,7 +445,6 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
     y_pred_prepared = y_pred_final.transpose() #note the transpose here !
     W_prepared = W
 
-    print(f'--delete-- verify: W_prepared.shape {W_prepared.shape}, y_pred_prepared.shape {y_pred_prepared.shape}')
     # get M_pred
     # # NOTE: the cuda tesnor needs a little conversion first from cuda to cpu and to the right dimension
     M_pred = np.matmul(W_prepared, y_pred_prepared)  
@@ -491,7 +452,6 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
     # get M_truth
     M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
     # assert equal sizes
-    print(f'--delete-- verify:  M_pred.shape {M_pred.shape}  ~  M_truth.shape {M_truth.shape}')
     M_pred = M_pred.squeeze()
     M_truth = M_truth.squeeze()
     assert M_pred.shape == M_truth.shape
@@ -546,13 +506,10 @@ def getFullDimsPrediction_with_AE_DS(dataset, AEnet, model, device):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
-            # print(f'\n--delete-- x.shape {x.shape}')
 
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-                # y = y.float()  #TODO delete ?
-                # y = y.to(device=device)  #TODO delete ?
         
             '''
             feed data to model to get K dim result
@@ -575,26 +532,18 @@ def getFullDimsPrediction_with_AE_DS(dataset, AEnet, model, device):
             
             # delete vectors used from the GPU
             del x
-            # del y   #TODO delete ?
             # finished loop
     
     '''
     restore dimension to y_pred by using the decoder
     '''
     # restore dimension to y_pred by using the decoder (from our pre-trained autoencoder)
-
-    # test: commented 270920 morning
-    # y_pred_final = torch.from_numpy(y_pred_final).cuda()  # change back to a tensor in order to insert to AE net #TODO: if not needed, delete
-    # M_pred = dataset.autoEncoder.decodeWrapper(y_pred_final) # TODO: might need to put .to(device) here or .cpu().detach() here  #TODO: if not needed, delete
-    # M_pred = M_pred.cpu().detach().numpy() #TODO: if not needed, delete
-    # and instead of those, added:
     M_pred = y_pred_final.transpose() #NOTE the transpose - it is used to allign shapes with M_truth
 
     # get M_truth
     M_truth = dataset.matrix_dataframe.to_numpy()  # this is the full 33538 dimensional vector (or 23073~ after reduction) from the original dataframe
     
     # assert equal sizes
-    print(f'--delete-- verify:  M_pred.shape {M_pred.shape}  ~  M_truth.shape {M_truth.shape}')
     M_pred = M_pred.squeeze()
     M_truth = M_truth.squeeze()
     assert M_pred.shape == M_truth.shape
@@ -633,7 +582,6 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x = data  # x.shape should be (all_images_size, 3, 176, 176)
-            # print(f'\n--delete-- x.shape {x.shape}')
             x = x.float()  # needed to avoid errors of conversion
             # load to device
             if device.type == 'cuda':
@@ -663,7 +611,6 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
     M_fast_reconstruction = result.transpose() #NOTE the transpose - it is used to allign shapes with M_truth
 
     # assert equal sizes
-    print(f'--delete-- verify:  M_fast_reconstruction.shape {M_fast_reconstruction.shape}  ~  M_truth.shape {dataset.matrix_dataframe.to_numpy().shape}')
     assert M_fast_reconstruction.shape == dataset.matrix_dataframe.to_numpy().shape
 
     print("\n----- finished function getAutoEncoder_M_fast_reconstruction -----")
@@ -677,7 +624,7 @@ def get_model_by_name(name, dataset, hyperparams):
     '''
     x0, y0, _ = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
     in_size = x0.shape # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
-    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)
     '''
     get_model_by_name
     '''
@@ -691,8 +638,8 @@ def get_model_by_name(name, dataset, hyperparams):
 
         # update the exisiting model's last layer
         input_size = model.classifier.in_features
-        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-                                                                # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! 
+                
         model.classifier = torch.nn.Linear(input_size, output_size, bias=True)
         model.classifier.weight.data.zero_()
         model.classifier.bias.data.zero_()
@@ -706,8 +653,8 @@ def get_model_by_name(name, dataset, hyperparams):
 
         # update the existing models last layer
         input_size = model.fc.in_features
-        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! #TODO: might need to be changed to a single number using .item() ... or .squeeze().item()
-                                                                # TODO: check if the output size is for one image, or for a batch !!! for now it is treated as for a single image
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! 
+                                                                
         model.fc = torch.nn.Linear(input_size, output_size, bias=True)
         model.fc.weight.data.zero_()
         model.fc.bias.data.zero_()
@@ -742,16 +689,16 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     '''
 
     # model
-    connected_layers_dim_list = [100*z_dim, 10*z_dim, 5*z_dim]  #NOTE: this is without the first and last layers !
+    connected_layers_dim_list = [100*z_dim, 10*z_dim, 5*z_dim]  #NOTE: this is without the first and last layers ! # TODO: change code to get this value from user ? (from the notebook with the hyperparams dictionary)
     print(f'note - number of (hidden) linear layers is supposed to be {len(connected_layers_dim_list)}')
     model = AutoencoderNet(in_features=num_of_features, connected_layers_dim_list=connected_layers_dim_list, z_dim=z_dim, batch_size=batch_size, device=device)
-    # TODO: this next if condition migt be temporarily commented because i get CUDA OUT OF MEMORY errors. (it shouldnt be commented)
+
     if device.type == 'cuda':
-        model = model.to(device=device)  # 030920 test: added cuda
+        model = model.to(device=device)  
     
     # loss and optimizer
     loss_fn = torch.nn.MSELoss()
-    learning_rate = 1e-4  #TODO: need to play with this value ....
+    learning_rate = 1e-4      # TODO: change code to get this value from user ? (from the notebook with the hyperparams dictionary)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     '''
@@ -759,12 +706,16 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     '''
 
     print("****** begin training ******")
-    num_of_epochs = 3  # TODO: this number was lowered since i dont have alot of time to play around :)
+    num_of_epochs = 3       # TODO: change code to get this value from user ? (from the notebook with the hyperparams dictionary)
     max_alowed_number_of_batches = 999999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
-    num_of_batches = (len(dataset) // batch_size)  # TODO: check this line
+    num_of_batches = (len(dataset) // batch_size)  
     if num_of_batches > max_alowed_number_of_batches:
         print(f'NOTE: in order to speed up training (while damaging accuracy) the number of batches per epoch was reduced from {num_of_batches} to {max_alowed_number_of_batches}')
         num_of_batches = max_alowed_number_of_batches
+    else:
+        # make sure there are no leftover datapoints not used because of "//"" calculation above
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1  #TODO: verify 
 
 
     # note 2 loops here: external and internal
@@ -792,7 +743,7 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
             
         
             # Compute (and print) loss.
-            loss = loss_fn(x_reconstructed, x)  # TODO: check order and correctness
+            loss = loss_fn(x_reconstructed, x)  
             loss_values_list.append(loss.item())
 
             # Before the backward pass, use the optimizer object to zero all of the
@@ -811,10 +762,6 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
         #end of inner loop
         print(f'\nfinished inner loop.\n')
 
-        # # verification prints:
-        # print(f'loss_values_list len {len(loss_values_list)}')
-        # print(f'loss_values_list is {loss_values_list}')
-
         # data prints on the epoch that ended
         print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
         print(f'               average loss {np.mean(loss_values_list)}')
@@ -822,5 +769,5 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     pass
     print("\n----- finished function return_trained_AE_net -----\n")
 
-    # return the trained model TODO: check this is the correct syntax
+    # return the trained model
     return model
