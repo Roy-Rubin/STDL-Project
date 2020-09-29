@@ -525,7 +525,7 @@ def getFullDimsPrediction_with_AE_DS(dataset, AEnet, model, device):
     '''
     prepare the data
     '''
-    printInfoAboutDataset(dataset)
+    # printInfoAboutDataset(dataset)
 
     batch_size = 1  ### NOTE: Important !!! the reason this is 1 it to correlate with the way we trained the AE net... see "return_trained_AE_net" in loadAndPreProcess.py .
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True) 
@@ -660,10 +660,10 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
     '''
     finish up
     '''
-    M_fast_reconstruction = result
+    M_fast_reconstruction = result.transpose() #NOTE the transpose - it is used to allign shapes with M_truth
 
     # assert equal sizes
-    print(f'--delete-- verify:  M_fast_reconstruction.shape {M_fast_reconstruction.shape}  ~  M_truth.shape {M_truth.shape}')
+    print(f'--delete-- verify:  M_fast_reconstruction.shape {M_fast_reconstruction.shape}  ~  M_truth.shape {dataset.matrix_dataframe.to_numpy().shape}')
     assert M_fast_reconstruction.shape == dataset.matrix_dataframe.to_numpy().shape
 
     print("\n----- finished function getAutoEncoder_M_fast_reconstruction -----")

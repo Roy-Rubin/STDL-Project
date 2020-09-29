@@ -859,7 +859,7 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that these y values belong to
 
 
-    # def return_trained_AE_net(self, in_features, z_dim, device):
+    # def return_trained_AE_net(self, in_features, z_dim, device):  # TODO: if not needed, delete later !
     #     '''
     #     trains the AE net on the matrix dataframe
     #     returns the trained autoencoder model
