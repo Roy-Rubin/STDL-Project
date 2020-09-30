@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet, AutoencoderNet
-from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue_on_LargeImage
+from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue, printInfoAboutReducedDF
 from matplotlib import pyplot as plt
 
 
@@ -259,35 +259,9 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     assert M_pred.shape == M_truth.shape
 
     '''
-    plot results and save them
+    plot results
     '''
-    plt.clf()  # clears previous plots
-    # create a scatter
-    plt.scatter(x=M_truth, y=M_pred, label='M_truth VS M_pred')
-    # create a line
-    x = np.linspace(-0.5,3.5,100) # linspace() function to create evenly-spaced points in a given interval
-    y = x
-    plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
-    # set surroundings
-    plt.xlabel(f'M_truth values')
-    plt.ylabel(f'M_pred values')
-    plt.title(f'Result of comparison between M_truth VS M_pred\nwith model: {model_name} on dataset {dataset_name}')
-    plt.legend()
-    filename = f'{dataset_name}_{model_name}_comparison'
-    plt.savefig(f'{filename}.png', bbox_inches='tight')
-
-    # 290920 testing TODO: maybe delete later
-    temp_df = pd.DataFrame({'M_truth':M_truth, 'M_pred':M_pred})
-    print(f'info about M_truth VS M_pred dataframe: \n{temp_df}\n{temp_df.info()}')
-    print(f'some more info:::: truth first, then pred')
-    # from projectUtilities import printInfoAboutReducedDF
-    # printInfoAboutReducedDF(temp_df['M_truth'].to_frame())
-    # printInfoAboutReducedDF(temp_df['M_pred'].to_frame())
-    temp_df.plot('M_truth', 'M_pred', kind='scatter')
-    temp_df.to_csv(f'{filename}.csv')
-
-    # perform plot on larger image
-    plot_Single_Gene_PredAndTrue_on_LargeImage(dataset, M_pred, M_truth) 
+    plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name)
 
     print("\n----- finished function getSingleDimPrediction -----")
     #

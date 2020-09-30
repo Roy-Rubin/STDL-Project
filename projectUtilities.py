@@ -12,11 +12,11 @@ def compare_matrices(M_truth, M_pred, Baseline=None): #note the None if not need
     '''
     method - calculate distance between matrices
     '''
+    if Baseline is None:
+        print(f'recieved Baseline=None. errors with it will be 0')
     error1 = calculate_distance_between_matrices(M_truth, M_pred)
     error2 = calculate_distance_between_matrices(M_truth, Baseline)
     error3 = calculate_distance_between_matrices(M_pred, Baseline)
-    if M_fast_reconstruction is None:
-        print(f'recieved Baseline=None. errors with it will be 0')
     print(f'distance between M_truth, M_pred: {error1}')
     print(f'distance between M_truth, Baseline: {error2}')
     print(f'distance between M_pred, Baseline: {error3}')
@@ -178,51 +178,41 @@ def printInfoAboutCustomConcatanatedImageFolderDataset(dataset_object):
     pass
 
 
-def plot_Single_Gene_PredAndTrue_on_LargeImage(dataset, M_pred, M_true):
-    '''
-
-    options:
-
-    https://stackoverflow.com/questions/5715886/how-to-plot-a-x-y-grid-of-e-g-squares-with-colours-read-from-an-array
-
-    i chose the easy option from the above.
-
-    there is also a longer option there.
-
-    also see this for a better example on pcolor:
-
-    https://matplotlib.org/2.0.1/examples/pylab_examples/pcolor_demo.html
-
-    also note they state that pcolormesh might be better for the task
-
-    '''
+def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name):
     
+    '''
+    Plot data to compare matrices
+    '''
+    plt.clf()  # clears previous plots
+    # create a scatter
+    plt.scatter(x=M_truth, y=M_pred, label='M_truth VS M_pred')
+    # create a line
+    lower_x_bound = np.min(M_truth) - 0.1
+    upper_x_bound = np.max(M_truth) + 1
+    num_of_dots_in_line = 100
+    x = np.linspace(lower_x_bound,upper_x_bound,num_of_dots_in_line) # linspace() function to create evenly-spaced points in a given interval
+    y = x  # to plot y=x we'll create a y variable that is exactly like x
+    plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
+    # set surroundings
+    plt.xlabel(f'M_truth values')
+    plt.ylabel(f'M_pred values')
+    plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.legend()
+    # filename = f'{dataset_name}_{model_name}_comparison'
+    # plt.savefig(f'{filename}.png', bbox_inches='tight')
+    plt.show()
+    plt.clf()
+
     
-    #### OPTION 3 from the html doc
-    # x = np.arange(10)  # range of X values min to max. has to surround all existing values
-    # y = np.arange(10)  # same for Y
-    # z = np.zeros([10,10])  # 
-    # z[1,5] = 10
-    # z[2,7] = 20
-    # z[3,9] = 30
-    # pcolor(x,y,z)  # can also use pcolormesh
-
-
-    ##################
-
-    # create dataframe from csv
-    # every row looks like this: ACGCCTGACACGCGCT-1,0,0,0,3715,3896
-
-    print("\n\nstarted reading tissue_positions_list.csv")
-    path = "/home/roy.rubin/STDLproject/spatialGeneExpressionData/patient2/tissue_positions_list.csv" #TODO: make this an outside passthrough to the function ?
-    df = pd.read_csv(path, names=['barcode','tissue','row','col','x','y'])
-    print("V  finished reading tissue_positions_list.csv")
-
-    print(df)
+    '''
+    Plot data to compare with the large biopsy image
+    '''
 
     ### create the value column in the dataframe  ###
     list_of_values_true = []
     list_of_values_pred = []
+    x_list = []
+    y_list = []
 
     for index in range(dataset.num_of_images_with_no_augmentation):
         # get file's name
@@ -238,26 +228,73 @@ def plot_Single_Gene_PredAndTrue_on_LargeImage(dataset, M_pred, M_true):
         index_in_barcoes_df = dataset.barcodes_dataframe.index[dataset.barcodes_dataframe['barcodes'] == curr_sample_name].item() # assumption: only 1 item is returned
         column = dataset.column_mapping.index[dataset.column_mapping['original_index_from_matrix_dataframe'] == index_in_barcoes_df].item() # assumption: only one item is returned
         
-        # append the value for that barcode
-        list_of_values_true.append(M_true[column])
+        # append the gene_exp value (pred or true) for that barcode
+        list_of_values_true.append(M_truth[column])
         list_of_values_pred.append(M_pred[column])
-    
-    print(f'--delete-- list_of_values_true len {len(list_of_values_true)}')
-    print(f'--delete-- list_of_values_true  {(list_of_values_true)}')
 
-    print(f'--delete-- list_of_values_pred len {len(list_of_values_pred)}')
-    print(f'--delete-- list_of_values_pred  {(list_of_values_pred)}')
-
-    # create new columns for the gathered data
-    df['gene_exp_level_true'] = list_of_values_true
-    df['gene_exp_level_pred'] = list_of_values_pred
-    # create the plot
-    df.plot.hexbin(x='x', y='y', C='gene_exp_level_true', reduce_C_function=np.max, gridsize=(df['x'].max()+1), title='gene_exp_level_true')    
-    df.plot.hexbin(x='x', y='y', C='gene_exp_level_pred', reduce_C_function=np.max, gridsize=(df['x'].max()+1), title='gene_exp_level_pred')    
+        # get the x and y values for that image name
+        x = curr_filename.partition('_')[2].partition('_')[0].partition('x')[2]
+        y = curr_filename.partition('_')[2].partition('_')[2].partition('_')[0].partition('y')[2]
+        
+        # append x and y values. note the conversion - its because they are strings !
+        x_list.append(int(x))
+        y_list.append(int(y))  
 
     
+    # # create a new dataframe with collectd data
+    # df = pd.DataFrame({'x':x_list, 'y':y_list, 'gene_exp_level_true':list_of_values_true, 'gene_exp_level_pred':list_of_values_pred})
+    # print(df)
+    # print(f'and now print the plots')
+
+    x_boundry = int(max(x_list)) + 1
+    y_boundry = int(max(y_list)) + 1
+
+    print(f'--delete-- x_boundry is {x_boundry}')
+    print(f'--delete-- y_boundry is {y_boundry}')
+
+    values_matrix_true = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
+    values_matrix_pred = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
+
+    print(f'--delete-- values_matrix_true shape {values_matrix_true.shape}')
+
+    index = 0
+    for x, y, true_val, pred_val in zip(x_list, y_list, list_of_values_true, list_of_values_pred):
+        ## comented as test 300920 - the test is to make the values un-normalized with the inverse of log1p to make the colors in the plot more distinctive
+        # orig
+        # values_matrix_true[x,y] = true_val
+        # values_matrix_pred[x,y] = pred_val
+        # new
+        values_matrix_true[x,y] = np.expm1(true_val)
+        values_matrix_pred[x,y] = np.expm1(pred_val)
+        ## end of test 300920
+
+        index += 1
+
+    print(f'Finished preparing values for plotting. now starting to plot, this might take a while ...')
     
-    '''
+    """ NOTE: possible interpolation_methods for imshow are [None, 'none', 'nearest', 'bilinear', 'bicubic', 'lanczos', ...] """
+
+    # plt.pcolormesh(values_matrix_true)  # NOTE: maybe later try `pcolor` instead
+    plt.imshow(values_matrix_true, interpolation='none', cmap='viridis')
+    plt.colorbar()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.show()
+    plt.clf()
+
+    # plt.pcolormesh(values_matrix_pred)  # NOTE: maybe later try `pcolor` instead
+    plt.imshow(values_matrix_true, interpolation='none', cmap='viridis')
+    plt.colorbar()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.show()
+    plt.clf()
+
+    
+    
+    ''' ##TODO: --delete-- if not necesarry
     I have come up with a much better solution using a for loop to append rectangle patches to a patch collection, then assign a colour map to the whole collection and plot.
 
     fig = plt.figure(figsize=(9,5))
