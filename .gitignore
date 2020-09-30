@@ -12,3 +12,4 @@ spatialGeneExpressionData/
 *.ipynb_checkpoints
 *.png
 main.py
+*.csv

@@ -1,4 +1,28 @@
 import numpy as np
+import pandas as pd
+
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.collections import PatchCollection
+import matplotlib.patches as mpatches
+
+
+def compare_matrices(M_truth, M_pred, Baseline=None): #note the None if not needed
+    # TODO: might need to move to utilities
+    '''
+    method - calculate distance between matrices
+    '''
+    error1 = calculate_distance_between_matrices(M_truth, M_pred)
+    error2 = calculate_distance_between_matrices(M_truth, Baseline)
+    error3 = calculate_distance_between_matrices(M_pred, Baseline)
+    if M_fast_reconstruction is None:
+        print(f'recieved Baseline=None. errors with it will be 0')
+    print(f'distance between M_truth, M_pred: {error1}')
+    print(f'distance between M_truth, Baseline: {error2}')
+    print(f'distance between M_pred, Baseline: {error3}')
+
+    pass
+
 
 def calculate_distance_between_matrices(matrix1,matrix2):
     '''
@@ -26,6 +50,20 @@ def calculate_distance_between_matrices(matrix1,matrix2):
     temp = m1-m2
     distance = np.linalg.norm(temp)  
     return distance
+
+
+def get_variance_of_gene(gene_name, matrix_df, row_mapping, features_df):
+    
+    '''
+    get the variance of a specific gene over all the samples
+    '''
+    gene_index_in_old_df = features_df.index[features_df['gene_names'] == gene_name].item()  # the old df is th original one before preprocessing
+    # new indices
+    row = row_mapping.index[row_mapping['original_index_from_matrix_dataframe'] == gene_index_in_old_df].item() # assumption: only one item is returned
+    # variance values
+    temp = pd.DataFrame(matrix_df.iloc[row,:])
+    gene_variance_value = temp.var()
+    return gene_variance_value.item()
 
 
 def printInfoAboutDataset(dataset):
@@ -136,5 +174,116 @@ def printInfoAboutCustomConcatanatedImageFolderDataset(dataset_object):
     print(f'index_offsets: {dataset_object.index_offsets}')
     print(f'list_of_image_filenames len: {len(dataset_object.list_of_image_filenames)}')
     print(f'list_of_image_filenames first few name: {dataset_object.list_of_image_filenames[0:5]}')
+
+    pass
+
+
+def plot_Single_Gene_PredAndTrue_on_LargeImage(dataset, M_pred, M_true):
+    '''
+
+    options:
+
+    https://stackoverflow.com/questions/5715886/how-to-plot-a-x-y-grid-of-e-g-squares-with-colours-read-from-an-array
+
+    i chose the easy option from the above.
+
+    there is also a longer option there.
+
+    also see this for a better example on pcolor:
+
+    https://matplotlib.org/2.0.1/examples/pylab_examples/pcolor_demo.html
+
+    also note they state that pcolormesh might be better for the task
+
+    '''
+    
+    
+    #### OPTION 3 from the html doc
+    # x = np.arange(10)  # range of X values min to max. has to surround all existing values
+    # y = np.arange(10)  # same for Y
+    # z = np.zeros([10,10])  # 
+    # z[1,5] = 10
+    # z[2,7] = 20
+    # z[3,9] = 30
+    # pcolor(x,y,z)  # can also use pcolormesh
+
+
+    ##################
+
+    # create dataframe from csv
+    # every row looks like this: ACGCCTGACACGCGCT-1,0,0,0,3715,3896
+
+    print("\n\nstarted reading tissue_positions_list.csv")
+    path = "/home/roy.rubin/STDLproject/spatialGeneExpressionData/patient2/tissue_positions_list.csv" #TODO: make this an outside passthrough to the function ?
+    df = pd.read_csv(path, names=['barcode','tissue','row','col','x','y'])
+    print("V  finished reading tissue_positions_list.csv")
+
+    print(df)
+
+    ### create the value column in the dataframe  ###
+    list_of_values_true = []
+    list_of_values_pred = []
+
+    for index in range(dataset.num_of_images_with_no_augmentation):
+        # get file's name
+        if hasattr(dataset.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = dataset.imageFolder.samples[index][0]
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            _, curr_filename = dataset.imageFolder[index]
+
+        # get the sample's name from its absolute path and file name
+        curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
+
+        # get the y value's COLUMN in the gene expression matrix df (with help from the barcodes df)
+        index_in_barcoes_df = dataset.barcodes_dataframe.index[dataset.barcodes_dataframe['barcodes'] == curr_sample_name].item() # assumption: only 1 item is returned
+        column = dataset.column_mapping.index[dataset.column_mapping['original_index_from_matrix_dataframe'] == index_in_barcoes_df].item() # assumption: only one item is returned
+        
+        # append the value for that barcode
+        list_of_values_true.append(M_true[column])
+        list_of_values_pred.append(M_pred[column])
+    
+    print(f'--delete-- list_of_values_true len {len(list_of_values_true)}')
+    print(f'--delete-- list_of_values_true  {(list_of_values_true)}')
+
+    print(f'--delete-- list_of_values_pred len {len(list_of_values_pred)}')
+    print(f'--delete-- list_of_values_pred  {(list_of_values_pred)}')
+
+    # create new columns for the gathered data
+    df['gene_exp_level_true'] = list_of_values_true
+    df['gene_exp_level_pred'] = list_of_values_pred
+    # create the plot
+    df.plot.hexbin(x='x', y='y', C='gene_exp_level_true', reduce_C_function=np.max, gridsize=(df['x'].max()+1), title='gene_exp_level_true')    
+    df.plot.hexbin(x='x', y='y', C='gene_exp_level_pred', reduce_C_function=np.max, gridsize=(df['x'].max()+1), title='gene_exp_level_pred')    
+
+    
+    
+    '''
+    I have come up with a much better solution using a for loop to append rectangle patches to a patch collection, then assign a colour map to the whole collection and plot.
+
+    fig = plt.figure(figsize=(9,5))
+    ax = plt.axes([0.1,0.1,0.7,0.7])
+    cmap = matplotlib.cm.jet
+    patches = []
+
+    data=np.array([4.5,8.6,2.4,9.6,11.3])
+    data_id_nos=np.array([5,6,9,8,7])
+    x_coords=np.array([3.12,2.6,2.08,1.56,1.04])
+    y_coords=np.array([6.76,6.24,5.72,5.20,4.68])
+    coord_id_nos=np.array([7,9,6,5,8])    
+
+    for i in range(len(data_id_nos)):
+            coords=(x_coords[np.where(coord_id_nos == data_id_nos[i])],y_coords[np.where(coord_id_nos == data_id_nos[i])])
+            art = mpatches.Rectangle(coords,0.50,0.50,ec="none")
+            patches.append(art)
+
+    #create collection of patches for IFU position
+    IFU1 = PatchCollection(patches, cmap=cmap)
+    #set the colours = data values
+    IFU1.set_array(np.array(data))
+    ax.add_collection(IFU1)
+    plt.axis('scaled')
+    plt.xlabel('x (arcsecs)')
+    plt.ylabel('y (arcsecs)')
+    '''
 
     pass

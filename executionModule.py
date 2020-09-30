@@ -3,9 +3,10 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import random_split
 import torchvision
 import numpy as np
+import pandas as pd
 from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet, AutoencoderNet
-from projectUtilities import calculate_distance_between_matrices, printInfoAboutDataset
+from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue_on_LargeImage
 from matplotlib import pyplot as plt
 
 
@@ -31,7 +32,7 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
         num_of_batches = max_alowed_number_of_batches
     else:
         # make sure there are no leftover datapoints not used because of "//"" calculation above
-        if (len(dataset) % batch_size) != 0:
+        if (len(ds_train) % dl_train.batch_size) != 0:
             num_of_batches = num_of_batches + 1  #TODO: verify
 
     '''
@@ -106,7 +107,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     (1) Trains the model on patient 1 data (train data)
     (2) Tests the model  on patient 2 data (test data)
     '''
-    print("\n----- entered function runExperimentWithModel_BasicConvNet -----")
+    print("\n----- entered function runExperiment -----")
 
     '''
     prepare model, loss and optimizer instances
@@ -122,9 +123,9 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     '''
     dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
     trained_model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
-                                   optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
-                                   max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
-                                   device=device)
+                                            optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
+                                            max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
+                                            device=device)
     
     '''
     Test the model and print comparisons
@@ -133,63 +134,47 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
 
     if dataset_name.startswith("single_gene"):
         M_truth, M_pred = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device, model_name=model_name, dataset_name=dataset_name) # note that this function saves a figure
-        compare_matrices(M_truth, M_pred, None)
+        baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
+        compare_matrices(M_truth, M_pred, Baseline=baseline)
         
     elif dataset_name.startswith("k_genes"):
         M_truth, M_pred = getKDimPrediction(dataset=ds_test, model=trained_model, device=device)
-        compare_matrices(M_truth, M_pred, None)
+        baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
+                                                                                 # note - since no axis is given, `np.average` performs an average over all elements in all dimensions
+        compare_matrices(M_truth, M_pred, Baseline=baseline)
 
     elif dataset_name.startswith("NMF"):
-        # perform comparisons on train data if this is not the augmented DS
-        if "augmented" not in dataset_name:
-            M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
-            # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
-            #                      orig_matrix ~       W * H           ~ W * H_pred
-            M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
-            compare_matrices(M_truth, M_pred, M_fast_reconstruction)
+        ## perform comparisons on train data if this is not the augmented DS
+        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
+        # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
+        #                      orig_matrix ~       W * H           ~ W * H_pred
+        M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
+        compare_matrices(M_truth, M_pred, Baseline=M_fast_reconstruction)
         
         # perform on test data
         M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, W=ds_train.W, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
-        compare_matrices(M_truth, M_pred, None)
+        compare_matrices(M_truth, M_pred, Baseline=None)
         
     elif dataset_name.startswith("AE"):
-         # perform comparisons on train data if this is not the augmented DS
-        if "augmented" not in dataset_name:
-            M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_train, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
-            # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
-            #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
-            M_fast_reconstruction = getAutoEncoder_M_fast_reconstruction(dataset=ds_train, model=trained_model, device=device)
-            compare_matrices(M_truth, M_pred, M_fast_reconstruction)
+        ## perform comparisons on train data if this is not the augmented DS
+        M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_train, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
+        # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
+        #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
+        M_fast_reconstruction = getAutoEncoder_M_fast_reconstruction(dataset=ds_train, model=trained_model, device=device)
+        compare_matrices(M_truth, M_pred, Baseline=M_fast_reconstruction)
 
         # perform on test data
         M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_test, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
-        compare_matrices(M_truth, M_pred, None)
+        compare_matrices(M_truth, M_pred, Baseline=None)
         
     # delete unneeded tesnors from GPU to save space
     del trained_model
     # goodbye
-    print("\n----- finished function runExperimentWithModel_BasicConvNet -----")
-    pass
-
-
-def compare_matrices(M_truth, M_pred, M_fast_reconstruction=None): #note the None if not needed
-    # TODO: might need to move to utilities
-    '''
-    method - calculate distance between matrices
-    '''
-    error1 = calculate_distance_between_matrices(M_truth, M_pred)
-    error2 = calculate_distance_between_matrices(M_truth, M_fast_reconstruction)
-    error3 = calculate_distance_between_matrices(M_pred, M_fast_reconstruction)
-    if M_fast_reconstruction is None:
-        print(f'recieved M_fast_reconstruction=None. errors with it will be 0')
-    print(f'distance between M_truth, M_pred: {error1}')
-    print(f'distance between M_truth, M_fast_reconstruction: {error2}')
-    print(f'distance between M_pred, M_fast_reconstruction: {error3}')
-
+    print("\n----- finished function runExperiment -----")
     pass
 
 
@@ -224,7 +209,7 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     prepare the data
     '''
     batch_size = 20
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True) 
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
     dl_iter = iter(dataloader)
     num_of_batches = (len(dataset) // batch_size)
     if (len(dataset) % batch_size) != 0:
@@ -280,7 +265,7 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     # create a scatter
     plt.scatter(x=M_truth, y=M_pred, label='M_truth VS M_pred')
     # create a line
-    x = np.linspace(-0.5,2.5,100) # linspace() function to create evenly-spaced points in a given interval
+    x = np.linspace(-0.5,3.5,100) # linspace() function to create evenly-spaced points in a given interval
     y = x
     plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
     # set surroundings
@@ -290,6 +275,19 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     plt.legend()
     filename = f'{dataset_name}_{model_name}_comparison'
     plt.savefig(f'{filename}.png', bbox_inches='tight')
+
+    # 290920 testing TODO: maybe delete later
+    temp_df = pd.DataFrame({'M_truth':M_truth, 'M_pred':M_pred})
+    print(f'info about M_truth VS M_pred dataframe: \n{temp_df}\n{temp_df.info()}')
+    print(f'some more info:::: truth first, then pred')
+    # from projectUtilities import printInfoAboutReducedDF
+    # printInfoAboutReducedDF(temp_df['M_truth'].to_frame())
+    # printInfoAboutReducedDF(temp_df['M_pred'].to_frame())
+    temp_df.plot('M_truth', 'M_pred', kind='scatter')
+    temp_df.to_csv(f'{filename}.csv')
+
+    # perform plot on larger image
+    plot_Single_Gene_PredAndTrue_on_LargeImage(dataset, M_pred, M_truth) 
 
     print("\n----- finished function getSingleDimPrediction -----")
     #
@@ -322,7 +320,7 @@ def getKDimPrediction(dataset, model, device):
     '''
 
     batch_size = 20
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True) 
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
     dl_iter = iter(dataloader)
     num_of_batches = (len(dataset) // batch_size)
     if (len(dataset) % batch_size) != 0:
@@ -398,14 +396,33 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
     '''
     prepare the data
     '''
-
+    
+    # define the batch size for the dataloader
     batch_size = 20
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True) 
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
+    
+    # check if dataset is augmented (=has x8 more images than the original dataset). 
+    # note that if the dataset is augmented, we are talking about the training dataset - and if not it is the testing dataset
+    # if the dataset is augmented, then we need to use here (= in the experiment and NOT in training) only the UNAUGMENTED images.
+    # ASSUMPTION: the augmented dataset's image folder object is a concatanation dataset created by me. 
+    #             the first `dataset.num_of_images_with_no_augmentation` images from it are the only ones i need for the experiment.
+    num_of_batches = 0
+    augmented_flag = False
+    remainder = -1
+    if dataset.size_of_dataset != dataset.num_of_images_with_no_augmentation:  # meaning this dataset is augmented, meaning this is a TRAIN dataset
+        num_of_batches = (dataset.num_of_images_with_no_augmentation // batch_size)
+        augmented_flag = True
+        if (dataset.num_of_images_with_no_augmentation % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+            remainder = dataset.num_of_images_with_no_augmentation % batch_size
+    else:  # meaning this dataset is NOT augmented, meaning this is a TEST dataset
+        num_of_batches = (len(dataset) // batch_size)
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+         
+    # create the dataloader
     dl_iter = iter(dataloader)
-    num_of_batches = (len(dataset) // batch_size)
-    if (len(dataset) % batch_size) != 0:
-        num_of_batches = num_of_batches + 1
-
+    # define an empty variable for the model's forward pass iterations
     y_pred_final = None
 
     for batch_index in range(num_of_batches):
@@ -414,10 +431,15 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
 
+            # small correction if this is an augmented dataset and this is the LAST batch ... we dont want the augmented images
+            if batch_index == num_of_batches-1 and augmented_flag is True and remainder != -1:
+                split_result = torch.split(tensor=x, split_size_or_sections=remainder, dim=0)  # dim=0 means split on batch size
+                x = split_result[0]
+
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-        
+
             '''
             feed data to model to get K dim result
             '''
@@ -488,12 +510,30 @@ def getFullDimsPrediction_with_AE_DS(dataset, AEnet, model, device):
     # printInfoAboutDataset(dataset)
 
     batch_size = 1  ### NOTE: Important !!! the reason this is 1 it to correlate with the way we trained the AE net... see "return_trained_AE_net" in loadAndPreProcess.py .
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True) 
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
+    
+    # check if dataset is augmented (=has x8 more images than the original dataset). 
+    # note that if the dataset is augmented, we are talking about the training dataset - and if not it is the testing dataset
+    # if the dataset is augmented, then we need to use here (= in the experiment and NOT in training) only the UNAUGMENTED images.
+    # ASSUMPTION: the augmented dataset's image folder object is a concatanation dataset created by me. 
+    #             the first `dataset.num_of_images_with_no_augmentation` images from it are the only ones i need for the experiment.
+    num_of_batches = 0
+    augmented_flag = False
+    remainder = -1
+    if dataset.size_of_dataset != dataset.num_of_images_with_no_augmentation:  # meaning this dataset is augmented, meaning this is a TRAIN dataset
+        num_of_batches = (dataset.num_of_images_with_no_augmentation // batch_size)
+        augmented_flag = True
+        if (dataset.num_of_images_with_no_augmentation % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+            remainder = dataset.num_of_images_with_no_augmentation % batch_size
+    else:  # meaning this dataset is NOT augmented, meaning this is a TEST dataset
+        num_of_batches = (len(dataset) // batch_size)
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+         
+    # create the dataloader
     dl_iter = iter(dataloader)
-    num_of_batches = (len(dataset) // batch_size)
-    if (len(dataset) % batch_size) != 0:
-        num_of_batches = num_of_batches + 1
-
+    # define an empty variable for the model's forward pass iterations
     y_pred_final = None
 
     '''
@@ -501,11 +541,17 @@ def getFullDimsPrediction_with_AE_DS(dataset, AEnet, model, device):
     and when the model is done, decode the result.
     the decoded results will be stacked together - and will add up to become M_pred
     '''
+
     for batch_index in range(num_of_batches):
         with torch.no_grad():  # no need to keep track of gradients since we are only using the forward of the model
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+
+            # small correction if this is an augmented dataset and this is the LAST batch ... we dont want the augmented images
+            if batch_index == num_of_batches-1 and augmented_flag is True and remainder != -1:
+                split_result = torch.split(tensor=x, split_size_or_sections=remainder, dim=0)  # dim=0 means split on batch size
+                x = split_result[0]
 
             # load to device
             if device.type == 'cuda':
@@ -563,12 +609,30 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
     preparations
     '''
     batch_size = 1  ### NOTE: Important !!! the reason this is 1 it to correlate with the way we trained the AE net... see "return_trained_AE_net" in loadAndPreProcess.py .
-    dataloader = DataLoader(dataset.dataset_from_matrix_df, batch_size=batch_size, shuffle=True) 
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
+    
+    # check if dataset is augmented (=has x8 more images than the original dataset). 
+    # note that if the dataset is augmented, we are talking about the training dataset - and if not it is the testing dataset
+    # if the dataset is augmented, then we need to use here (= in the experiment and NOT in training) only the UNAUGMENTED images.
+    # ASSUMPTION: the augmented dataset's image folder object is a concatanation dataset created by me. 
+    #             the first `dataset.num_of_images_with_no_augmentation` images from it are the only ones i need for the experiment.
+    num_of_batches = 0
+    augmented_flag = False
+    remainder = -1
+    if dataset.size_of_dataset != dataset.num_of_images_with_no_augmentation:  # meaning this dataset is augmented, meaning this is a TRAIN dataset
+        num_of_batches = (dataset.num_of_images_with_no_augmentation // batch_size)
+        augmented_flag = True
+        if (dataset.num_of_images_with_no_augmentation % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+            remainder = dataset.num_of_images_with_no_augmentation % batch_size
+    else:  # meaning this dataset is NOT augmented, meaning this is a TEST dataset
+        num_of_batches = (len(dataset) // batch_size)
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+         
+    # create the dataloader
     dl_iter = iter(dataloader)
-    num_of_batches = (len(dataset) // batch_size)
-    if (len(dataset) % batch_size) != 0:
-        num_of_batches = num_of_batches + 1
-
+    # define an empty variable for the model's forward pass iterations
     result = None
 
     '''
@@ -583,10 +647,16 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
             data = next(dl_iter)
             x = data  # x.shape should be (all_images_size, 3, 176, 176)
             x = x.float()  # needed to avoid errors of conversion
+
+            # small correction if this is an augmented dataset and this is the LAST batch ... we dont want the augmented images
+            if batch_index == num_of_batches-1 and augmented_flag is True and remainder != -1:
+                split_result = torch.split(tensor=x, split_size_or_sections=remainder, dim=0)  # dim=0 means split on batch size
+                x = split_result[0]
+
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-        
+
             # get the encoded version
             y_pred_encoded = dataset.autoEncoder.encodeWrapper(x)
             # get the decoded version
@@ -706,7 +776,7 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     '''
 
     print("****** begin training ******")
-    num_of_epochs = 3       # TODO: change code to get this value from user ? (from the notebook with the hyperparams dictionary)
+    num_of_epochs = 5       # TODO: change code to get this value from user ? (from the notebook with the hyperparams dictionary)
     max_alowed_number_of_batches = 999999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
     num_of_batches = (len(dataset) // batch_size)  
     if num_of_batches > max_alowed_number_of_batches:
@@ -771,3 +841,5 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
 
     # return the trained model
     return model
+
+

@@ -409,6 +409,11 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         self.num_of_features_matrix_df = len(matrix_dataframe.index) 
         self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
         self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+        # 290920 save for later use
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            self.num_of_images_with_no_augmentation = self.size_of_dataset
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            self.num_of_images_with_no_augmentation = imageFolder.dataset_lengths_list[0] # NOTE: the concatanated dataset has the original list of datasets inside it. first in that list is the original untransformed imageFolder DS
 
         '''
         create the reduced dataframe == a dataframe with only one row
@@ -472,13 +477,14 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, k-dim tensor)  ** the tensor is from k-dim latent space
     '''
 
-    def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_dataframe, column_mapping, num_of_dims_k):
+    def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_dataframe, column_mapping, row_mapping, num_of_dims_k):
         print("\n----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----")
 
         # Save important information from outside
         self.imageFolder = imageFolder
         self.matrix_dataframe, self.features_dataframe, self.barcodes_dataframe = matrix_dataframe, features_dataframe, barcodes_dataframe
         self.column_mapping = column_mapping
+        self.row_mapping = row_mapping
         # NOTE: the matrix_dataframe above is a reduced version of the original matrix_dataframe
         self.num_of_dims_k = num_of_dims_k
 
@@ -486,12 +492,16 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         self.num_of_features_matrix_df = len(matrix_dataframe.index) 
         self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
         self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+        # 290920 save for later use
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            self.num_of_images_with_no_augmentation = self.size_of_dataset
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            self.num_of_images_with_no_augmentation = imageFolder.dataset_lengths_list[0] # NOTE: the concatanated dataset has the original list of datasets inside it. first in that list is the original untransformed imageFolder DS
 
         '''
         create a reduced dataframe == a dataframe with only K chosen features 
         '''
         print("calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...")
-        import pandas as pd
         variance_df = matrix_dataframe.var(axis=1)  # get the variance of all the genes [varience of each gene over all samples] 
         # (this practically 'flattens' the df to one column of 33538 entries - one entry for each gene over all the samples)
         variance_df = pd.DataFrame(data=variance_df, columns=['variance']) # convert it from a pandas series to a pandas df
@@ -509,6 +519,14 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
         reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
         self.reduced_dataframe = reduced_df
+
+        # print information if wanted
+        print("the K genes with the highest variance are:")
+        unflattened_list = row_mapping.iloc[list_of_nlargest_indices].values.tolist()
+        flattened_list_of_nlargest_indices_in_orig_df = [elem[0] for elem in unflattened_list]  # [val for sublist in unflattened_list for val in sublist]
+        temp_df = pd.DataFrame(data=features_dataframe['gene_names'].iloc[flattened_list_of_nlargest_indices_in_orig_df] , columns=['gene_names'])  # .iloc returns values by order. and list_of_nlargest_indices is ordered desecndingly
+        temp_df['variance'] = nlargest_variance_df['variance'].values.tolist() # add a column with the variance values
+        print(temp_df)
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
 
@@ -575,6 +593,11 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_NMF(torch.utils.data.Dataset):
         self.num_of_features_matrix_df = len(matrix_dataframe.index) 
         self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
         self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+        # 290920 save for later use
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            self.num_of_images_with_no_augmentation = self.size_of_dataset
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            self.num_of_images_with_no_augmentation = imageFolder.dataset_lengths_list[0] # NOTE: the concatanated dataset has the original list of datasets inside it. first in that list is the original untransformed imageFolder DS
 
         # create the reduced dataframe:
         print("performing NMF decomposition on main matrix dataframe ...")
@@ -658,6 +681,11 @@ class STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(torch.utils.data.Datas
         self.num_of_features_matrix_df = len(matrix_dataframe.index) 
         self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
         self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
+        # 290920 save for later use
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            self.num_of_images_with_no_augmentation = self.size_of_dataset
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            self.num_of_images_with_no_augmentation = imageFolder.dataset_lengths_list[0] # NOTE: the concatanated dataset has the original list of datasets inside it. first in that list is the original untransformed imageFolder DS
 
         # save a torch.Dataset version of our pandas matrix_dataframe
         self.dataset_from_matrix_df = STDL_Dataset_matrix_df_for_AE_init(self.matrix_dataframe)
