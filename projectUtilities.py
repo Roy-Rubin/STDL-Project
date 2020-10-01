@@ -187,8 +187,8 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     # create a scatter
     plt.scatter(x=M_truth, y=M_pred, label='M_truth VS M_pred')
     # create a line
-    lower_x_bound = np.min(M_truth) - 0.1
-    upper_x_bound = np.max(M_truth) + 1
+    lower_x_bound = 0 # lower_x_bound = np.min(M_truth) - 0.1
+    upper_x_bound = np.max(M_pred) + 1  # upper_x_bound = np.max(M_truth) + 1
     num_of_dots_in_line = 100
     x = np.linspace(lower_x_bound,upper_x_bound,num_of_dots_in_line) # linspace() function to create evenly-spaced points in a given interval
     y = x  # to plot y=x we'll create a y variable that is exactly like x
@@ -241,10 +241,12 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
         y_list.append(int(y))  
 
     
-    # # create a new dataframe with collectd data
-    # df = pd.DataFrame({'x':x_list, 'y':y_list, 'gene_exp_level_true':list_of_values_true, 'gene_exp_level_pred':list_of_values_pred})
-    # print(df)
-    # print(f'and now print the plots')
+    
+
+
+    # decrease sizes for plot reasons
+    x_list = [x - min(x_list) for x in x_list]  # decreasing the size ...
+    y_list = [x - min(y_list) for x in y_list]  # decreasing the size ...
 
     x_boundry = int(max(x_list)) + 1
     y_boundry = int(max(y_list)) + 1
@@ -252,20 +254,29 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     print(f'--delete-- x_boundry is {x_boundry}')
     print(f'--delete-- y_boundry is {y_boundry}')
 
-    values_matrix_true = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
-    values_matrix_pred = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
+    
+    ## comented as test 300920 - the test is to make the colors in the plot more distinctive #TODO: delete later if not needed
+    # orig
+    # values_matrix_true = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
+    # values_matrix_pred = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
+    # new
+    fill_value = np.max(list_of_values_true) + 5
+    values_matrix_true = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    values_matrix_pred = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    ## end of test 300920
+
 
     print(f'--delete-- values_matrix_true shape {values_matrix_true.shape}')
 
     index = 0
     for x, y, true_val, pred_val in zip(x_list, y_list, list_of_values_true, list_of_values_pred):
-        ## comented as test 300920 - the test is to make the values un-normalized with the inverse of log1p to make the colors in the plot more distinctive
+        ## comented as test 300920 - the test is to make the values un-normalized with the inverse of log1p to make the colors in the plot more distinctive #TODO: delete later if not needed
         # orig
         # values_matrix_true[x,y] = true_val
         # values_matrix_pred[x,y] = pred_val
         # new
-        values_matrix_true[x,y] = np.expm1(true_val)
-        values_matrix_pred[x,y] = np.expm1(pred_val)
+        values_matrix_true[x,y] = np.expm1(true_val) + 5
+        values_matrix_pred[x,y] = np.expm1(pred_val) + 5
         ## end of test 300920
 
         index += 1
@@ -275,7 +286,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     """ NOTE: possible interpolation_methods for imshow are [None, 'none', 'nearest', 'bilinear', 'bicubic', 'lanczos', ...] """
 
     # plt.pcolormesh(values_matrix_true)  # NOTE: maybe later try `pcolor` instead
-    plt.imshow(values_matrix_true, interpolation='none', cmap='viridis')
+    plt.imshow(values_matrix_true, interpolation='none', cmap='viridis', origin='lower')
     plt.colorbar()
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
@@ -284,7 +295,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.clf()
 
     # plt.pcolormesh(values_matrix_pred)  # NOTE: maybe later try `pcolor` instead
-    plt.imshow(values_matrix_true, interpolation='none', cmap='viridis')
+    plt.imshow(values_matrix_pred, interpolation='none', cmap='viridis', origin='lower')
     plt.colorbar()
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
@@ -292,7 +303,37 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.show()
     plt.clf()
 
-    
+    plt.scatter(x=x_list, y=y_list, c=values_matrix_true[x,y], marker='s')  #color as the values in k matrix
+    plt.colorbar()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.show()
+    plt.clf()
+
+    plt.scatter(x=x_list, y=y_list, c=values_matrix_pred[x,y], marker='s')  #color as the values in k matrix
+    plt.colorbar()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.show()
+    plt.clf()
+
+    plt.spy(values_matrix_true, aspect='equal', cmap='viridis', origin='lower')
+    plt.colorbar()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.show()
+    plt.clf()
+
+    plt.spy(values_matrix_pred, aspect='equal', cmap='viridis', origin='lower')
+    plt.colorbar()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.show()
+    plt.clf()
     
     ''' ##TODO: --delete-- if not necesarry
     I have come up with a much better solution using a for loop to append rectangle patches to a patch collection, then assign a colour map to the whole collection and plot.

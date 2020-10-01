@@ -263,6 +263,12 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     '''
     plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name)
 
+
+    ### TODO temp
+    print(f'--delete--!!-- M_pred: {M_pred} \n----\nM_truth: {M_truth} ')
+    temp_df = pd.DataFrame({'M_truth':M_truth, 'M_pred':M_pred})
+    print(temp_df)
+
     print("\n----- finished function getSingleDimPrediction -----")
     #
     return M_truth, M_pred
@@ -583,8 +589,9 @@ def getAutoEncoder_M_fast_reconstruction(dataset, model, device):
     preparations
     '''
     batch_size = 1  ### NOTE: Important !!! the reason this is 1 it to correlate with the way we trained the AE net... see "return_trained_AE_net" in loadAndPreProcess.py .
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
-    
+    dataloader = DataLoader(dataset.dataset_from_matrix_df, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
+                        # note what dataset is used ^^^^ 
+                           
     # check if dataset is augmented (=has x8 more images than the original dataset). 
     # note that if the dataset is augmented, we are talking about the training dataset - and if not it is the testing dataset
     # if the dataset is augmented, then we need to use here (= in the experiment and NOT in training) only the UNAUGMENTED images.
