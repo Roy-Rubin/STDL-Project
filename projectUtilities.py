@@ -180,6 +180,8 @@ def printInfoAboutCustomConcatanatedImageFolderDataset(dataset_object):
 
 def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name):
     
+    print("\n----- entered function plot_Single_Gene_PredAndTrue -----")
+
     '''
     Plot data to compare matrices
     '''
@@ -203,11 +205,35 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.show()
     plt.clf()
 
+
+    # testing !!!
+
+    M_truth_upscaled = [np.expm1(val) for val in list(M_truth)]
+    M_pred_upscaled = [np.expm1(val) for val in list(M_pred)]
+    # create a scatter
+    plt.scatter(x=M_truth_upscaled, y=M_pred_upscaled, label='M_truth VS M_pred')
+    # create a line
+    lower_x_bound = 0 # lower_x_bound = np.min(M_truth) - 0.1
+    upper_x_bound = np.max(M_pred_upscaled) + 1  # upper_x_bound = np.max(M_truth) + 1
+    num_of_dots_in_line = 100
+    x = np.linspace(lower_x_bound,upper_x_bound,num_of_dots_in_line) # linspace() function to create evenly-spaced points in a given interval
+    y = x  # to plot y=x we'll create a y variable that is exactly like x
+    plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
+    # set surroundings
+    plt.xlabel(f'M_truth values')
+    plt.ylabel(f'M_pred values')
+    plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.legend()
+    plt.show()
+    plt.clf()
     
     '''
     Plot data to compare with the large biopsy image
     '''
 
+    '''
+    First, gather info
+    '''
     ### create the value column in the dataframe  ###
     list_of_values_true = []
     list_of_values_pred = []
@@ -240,128 +266,88 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
         x_list.append(int(x))
         y_list.append(int(y))  
 
-    
-    
-
-
+    '''
+    Make preparations for the plot
+    '''
     # decrease sizes for plot reasons
     x_list = [x - min(x_list) for x in x_list]  # decreasing the size ...
     y_list = [x - min(y_list) for x in y_list]  # decreasing the size ...
-
+    #
     x_boundry = int(max(x_list)) + 1
     y_boundry = int(max(y_list)) + 1
-
-    print(f'--delete-- x_boundry is {x_boundry}')
-    print(f'--delete-- y_boundry is {y_boundry}')
-
+    # modulate up (~un-normalize the log1p normalization) because otherwise colors dont work
+    list_of_values_true = [np.expm1(true_val)+1 for true_val in list_of_values_true]
+    list_of_values_pred = [np.expm1(pred_val)+1 for pred_val in list_of_values_pred]
     
-    ## comented as test 300920 - the test is to make the colors in the plot more distinctive #TODO: delete later if not needed
-    # orig
-    # values_matrix_true = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
-    # values_matrix_pred = np.zeros([x_boundry,y_boundry]) # values is a 2d matrix - each entry is a color
-    # new
-    fill_value = np.max(list_of_values_true) + 5
-    values_matrix_true = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
-    values_matrix_pred = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
-    ## end of test 300920
+    # NOTE !!!! the low mid high values - will be built on TRUE VALUES but used also for PRED VALUES !!!!!
+    list_sorted = sorted(list_of_values_true)
+    n = len(list_sorted)
+    low_val = list_sorted[int(2 * n/5)-1]
+    mid_val = list_sorted[int(3 * n/5)-1]
+    high_val = list_sorted[int(4 * n/5)-1]
+    # create the (sparse de-facto but not sparse python-wise) matrices
+    # init them empty
+    fill_value = 0  
+    low_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    mid_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    high_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    very_high_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    low_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    mid_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    high_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    very_high_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
 
-
-    print(f'--delete-- values_matrix_true shape {values_matrix_true.shape}')
-
+    # add values to the matrices
     index = 0
     for x, y, true_val, pred_val in zip(x_list, y_list, list_of_values_true, list_of_values_pred):
-        ## comented as test 300920 - the test is to make the values un-normalized with the inverse of log1p to make the colors in the plot more distinctive #TODO: delete later if not needed
-        # orig
-        # values_matrix_true[x,y] = true_val
-        # values_matrix_pred[x,y] = pred_val
-        # new
-        values_matrix_true[x,y] = np.expm1(true_val) + 5
-        values_matrix_pred[x,y] = np.expm1(pred_val) + 5
-        ## end of test 300920
-
         index += 1
+        # add to true matrices
+        low_T[x,y] = true_val if true_val <= low_val else fill_value
+        mid_T[x,y] = true_val  if true_val > low_val and true_val <= mid_val else fill_value
+        high_T[x,y] = true_val  if true_val > mid_val and true_val <= high_val else fill_value
+        very_high_T[x,y] = true_val  if true_val > high_val else fill_value
+        # add to pred matrices
+        low_P[x,y] = pred_val if pred_val <= low_val else fill_value
+        mid_P[x,y] = pred_val  if pred_val > low_val and pred_val <= mid_val else fill_value
+        high_P[x,y] = pred_val  if pred_val > mid_val and pred_val <= high_val else fill_value
+        very_high_P[x,y] = pred_val  if pred_val > high_val else fill_value
 
-    print(f'Finished preparing values for plotting. now starting to plot, this might take a while ...')
-    
-    """ NOTE: possible interpolation_methods for imshow are [None, 'none', 'nearest', 'bilinear', 'bicubic', 'lanczos', ...] """
-
-    # plt.pcolormesh(values_matrix_true)  # NOTE: maybe later try `pcolor` instead
-    plt.imshow(values_matrix_true, interpolation='none', cmap='viridis', origin='lower')
-    plt.colorbar()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.show()
-    plt.clf()
-
-    # plt.pcolormesh(values_matrix_pred)  # NOTE: maybe later try `pcolor` instead
-    plt.imshow(values_matrix_pred, interpolation='none', cmap='viridis', origin='lower')
-    plt.colorbar()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.show()
-    plt.clf()
-
-    plt.scatter(x=x_list, y=y_list, c=values_matrix_true[x,y], marker='s')  #color as the values in k matrix
-    plt.colorbar()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.show()
-    plt.clf()
-
-    plt.scatter(x=x_list, y=y_list, c=values_matrix_pred[x,y], marker='s')  #color as the values in k matrix
-    plt.colorbar()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.show()
-    plt.clf()
-
-    plt.spy(values_matrix_true, aspect='equal', cmap='viridis', origin='lower')
-    plt.colorbar()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.show()
-    plt.clf()
-
-    plt.spy(values_matrix_pred, aspect='equal', cmap='viridis', origin='lower')
-    plt.colorbar()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.show()
-    plt.clf()
-    
-    ''' ##TODO: --delete-- if not necesarry
-    I have come up with a much better solution using a for loop to append rectangle patches to a patch collection, then assign a colour map to the whole collection and plot.
-
-    fig = plt.figure(figsize=(9,5))
-    ax = plt.axes([0.1,0.1,0.7,0.7])
-    cmap = matplotlib.cm.jet
-    patches = []
-
-    data=np.array([4.5,8.6,2.4,9.6,11.3])
-    data_id_nos=np.array([5,6,9,8,7])
-    x_coords=np.array([3.12,2.6,2.08,1.56,1.04])
-    y_coords=np.array([6.76,6.24,5.72,5.20,4.68])
-    coord_id_nos=np.array([7,9,6,5,8])    
-
-    for i in range(len(data_id_nos)):
-            coords=(x_coords[np.where(coord_id_nos == data_id_nos[i])],y_coords[np.where(coord_id_nos == data_id_nos[i])])
-            art = mpatches.Rectangle(coords,0.50,0.50,ec="none")
-            patches.append(art)
-
-    #create collection of patches for IFU position
-    IFU1 = PatchCollection(patches, cmap=cmap)
-    #set the colours = data values
-    IFU1.set_array(np.array(data))
-    ax.add_collection(IFU1)
-    plt.axis('scaled')
-    plt.xlabel('x (arcsecs)')
-    plt.ylabel('y (arcsecs)')
     '''
+    Plot !
+    '''
+    # plot figure for M_truth !!!
+    plt.figure(figsize=(8,8))
+    plt.spy(low_T, markersize=4, color='lime', label='Low Values')
+    plt.spy(mid_T, markersize=4, color='yellow', label='Medium Values')
+    plt.spy(high_T, markersize=4, color='deepskyblue', label='High Values')  # maybe 'violet' instead ?
+    plt.spy(very_high_T, markersize=4, color='red', label='Very High Values')
+    plt.legend()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}', fontsize=15)
+    plt.show()
+    plt.clf()
 
+    # plot figure for M_pred !!!
+    plt.figure(figsize=(8,8))
+    plt.spy(low_P, markersize=4, color='lime', label='Low Values')
+    plt.spy(mid_P, markersize=4, color='yellow', label='Medium Values')
+    plt.spy(high_P, markersize=4, color='deepskyblue', label='High Values')  # maybe 'violet' instead ?
+    plt.spy(very_high_P, markersize=4, color='red', label='Very High Values')
+    plt.legend()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}', fontsize=15)
+    plt.show()
+    plt.clf()
+
+    '''
+    final note:
+    options that didnt work here:
+    scatter
+    pcolor
+    pcolormesh
+    imshow
+    '''
     pass
+    print("\n----- finished function plot_Single_Gene_PredAndTrue -----")

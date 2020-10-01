@@ -136,6 +136,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         M_truth, M_pred = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device, model_name=model_name, dataset_name=dataset_name) # note that this function saves a figure
         baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
         compare_matrices(M_truth, M_pred, Baseline=baseline)
+        plot_Single_Gene_PredAndTrue(ds_test, M_pred, M_truth, model_name, dataset_name)
         
     elif dataset_name.startswith("k_genes"):
         M_truth, M_pred = getKDimPrediction(dataset=ds_test, model=trained_model, device=device)
@@ -226,12 +227,17 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
             # load to device
             if device.type == 'cuda':
                 x = x.to(device=device)  
-        
+
+
+            # print(f'--delete-- x: {x}')
+
             '''
             feed data to model to get K dim result
             '''
             # # This nex lines is to heavy for the GPU (apparantly); and so it is divided into small portions
             y_pred = model(x)
+
+            # print(f'--delete-- y_pred: {y_pred}')
 
             if y_pred_final is None:  # means this is the first time the prediction occured == first iteration of the loop
                 y_pred_final = y_pred.cpu().detach().numpy()
@@ -240,7 +246,7 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
                                 # np.vstack: # Stack arrays in sequence vertically (row wise) !
                 y_pred_curr_prepared = y_pred.cpu().detach().numpy()
                 y_pred_final = np.vstack((y_pred_final, y_pred_curr_prepared))
-            
+                       
             # delete vectors used from the GPU
             del x
             # finished loop
@@ -258,16 +264,16 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     M_truth = M_truth.squeeze()
     assert M_pred.shape == M_truth.shape
 
+    ### TODO temp to delete
+    print(f'--delete-- at the end of the function, printing information about the prediction vs the truth values')
+    temp_df = pd.DataFrame({'M_truth':M_truth, 'M_pred':M_pred})
+    print(temp_df)
+
     '''
     plot results
     '''
-    plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name)
+    # plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name)
 
-
-    ### TODO temp
-    print(f'--delete--!!-- M_pred: {M_pred} \n----\nM_truth: {M_truth} ')
-    temp_df = pd.DataFrame({'M_truth':M_truth, 'M_pred':M_pred})
-    print(temp_df)
 
     print("\n----- finished function getSingleDimPrediction -----")
     #
