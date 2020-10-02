@@ -63,6 +63,9 @@ class ConvNet(nn.Module):
                 nn.Conv2d(in_channels=curr_channels, out_channels=self.channels[i], kernel_size=3, padding=1, stride=1,
                           dilation=1))
             curr_channels = self.channels[i]
+            
+            layers.append(nn.BatchNorm2d(curr_channels)) ## added 021020
+            
             layers.append(nn.ReLU())
             # if ((i + 1) % P) == 0:
             #     layers.append(nn.MaxPool2d(kernel_size=2))

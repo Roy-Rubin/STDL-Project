@@ -763,7 +763,6 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     '''
 
     print("****** begin training ******")
-    num_of_epochs = 5       # TODO: change code to get this value from user ? (from the notebook with the hyperparams dictionary)
     max_alowed_number_of_batches = 999999  # the purpose of this var is if i dont realy want all of the batches to be trained uppon ... 
     num_of_batches = (len(dataset) // batch_size)  
     if num_of_batches > max_alowed_number_of_batches:
@@ -786,19 +785,32 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
         for batch_index in range(num_of_batches):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             # get current batch data 
+            
+#             print(f'--delete-- time step 1')
+            
             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
+            
+#             print(f'--delete-- time step 2  data {data}')
+
             #
             x = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25
             x = x.float()  # needed to avoid errors of conversion
             if device.type == 'cuda':
                 x = x.to(device=device)  
+                
+#             print(f'--delete-- time step 3  x {x}')
 
             # Forward pass: compute predicted y by passing x to the model.
             x_reconstructed = model(x)  
-            if device.type == 'cuda':
-                x_reconstructed = x_reconstructed.to(device=device)
+            
+            # commented 011020 evening TODO maybe delete later
+            ##if device.type == 'cuda':
+            ##    x_reconstructed = x_reconstructed.to(device=device)
             
         
+#             print(f'--delete-- time step 4  x_reconstructed {x_reconstructed}')
+
+            
             # Compute (and print) loss.
             loss = loss_fn(x_reconstructed, x)  
             loss_values_list.append(loss.item())

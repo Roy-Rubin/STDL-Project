@@ -4,6 +4,7 @@ cs236781_hw2/
 cs236781_hw3/
 cs236781/
 spatialGeneExpressionData/
+old_files/
 
 # Files i dont want to commit #
 ###################
@@ -13,3 +14,4 @@ spatialGeneExpressionData/
 *.png
 main.py
 *.csv
+*.out
