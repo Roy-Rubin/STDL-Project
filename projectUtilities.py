@@ -8,7 +8,6 @@ import matplotlib.patches as mpatches
 
 
 def compare_matrices(M_truth, M_pred, Baseline=None): #note the None if not needed
-    # TODO: might need to move to utilities
     '''
     method - calculate distance between matrices
     '''

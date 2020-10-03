@@ -33,7 +33,7 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
     else:
         # make sure there are no leftover datapoints not used because of "//"" calculation above
         if (len(ds_train) % dl_train.batch_size) != 0:
-            num_of_batches = num_of_batches + 1  #TODO: verify
+            num_of_batches = num_of_batches + 1  
 
     '''
     BEGIN TRAINING !!!
@@ -228,16 +228,11 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
             if device.type == 'cuda':
                 x = x.to(device=device)  
 
-
-            # print(f'--delete-- x: {x}')
-
             '''
             feed data to model to get K dim result
             '''
             # # This nex lines is to heavy for the GPU (apparantly); and so it is divided into small portions
             y_pred = model(x)
-
-            # print(f'--delete-- y_pred: {y_pred}')
 
             if y_pred_final is None:  # means this is the first time the prediction occured == first iteration of the loop
                 y_pred_final = y_pred.cpu().detach().numpy()
@@ -264,16 +259,10 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     M_truth = M_truth.squeeze()
     assert M_pred.shape == M_truth.shape
 
-    ### TODO temp to delete
-    print(f'--delete-- at the end of the function, printing information about the prediction vs the truth values')
+    ### final print
+    print(f'Reached end of the function, printing information about the prediction vs the truth values')
     temp_df = pd.DataFrame({'M_truth':M_truth, 'M_pred':M_pred})
     print(temp_df)
-
-    '''
-    plot results
-    '''
-    # plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name)
-
 
     print("\n----- finished function getSingleDimPrediction -----")
     #
@@ -771,7 +760,7 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     else:
         # make sure there are no leftover datapoints not used because of "//"" calculation above
         if (len(dataset) % batch_size) != 0:
-            num_of_batches = num_of_batches + 1  #TODO: verify 
+            num_of_batches = num_of_batches + 1   
 
 
     # note 2 loops here: external and internal
@@ -784,33 +773,18 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
 
         for batch_index in range(num_of_batches):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
-            # get current batch data 
-            
-#             print(f'--delete-- time step 1')
-            
+            # get current batch data             
             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
             
-#             print(f'--delete-- time step 2  data {data}')
-
             #
             x = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25
             x = x.float()  # needed to avoid errors of conversion
             if device.type == 'cuda':
                 x = x.to(device=device)  
                 
-#             print(f'--delete-- time step 3  x {x}')
-
             # Forward pass: compute predicted y by passing x to the model.
             x_reconstructed = model(x)  
-            
-            # commented 011020 evening TODO maybe delete later
-            ##if device.type == 'cuda':
-            ##    x_reconstructed = x_reconstructed.to(device=device)
-            
-        
-#             print(f'--delete-- time step 4  x_reconstructed {x_reconstructed}')
-
-            
+                        
             # Compute (and print) loss.
             loss = loss_fn(x_reconstructed, x)  
             loss_values_list.append(loss.item())
