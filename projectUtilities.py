@@ -52,17 +52,25 @@ def calculate_distance_between_matrices(matrix1,matrix2):
 
 
 def get_variance_of_gene(gene_name, matrix_df, row_mapping, features_df):
-    
     '''
     get the variance of a specific gene over all the samples
     '''
-    gene_index_in_old_df = features_df.index[features_df['gene_names'] == gene_name].item()  # the old df is th original one before preprocessing
-    # new indices
-    row = row_mapping.index[row_mapping['original_index_from_matrix_dataframe'] == gene_index_in_old_df].item() # assumption: only one item is returned
+    row, _ = get_index_of_gene_by_name(gene_name, matrix_df, row_mapping, features_df)
     # variance values
     temp = pd.DataFrame(matrix_df.iloc[row,:])
     gene_variance_value = temp.var()
     return gene_variance_value.item()
+
+
+def get_index_of_gene_by_name(gene_name, matrix_df, row_mapping, features_df):
+    '''
+    get a gene's index in the (reduced) matrix dataframe by its name
+    '''
+    gene_row_index_in_old_df = features_df.index[features_df['gene_names'] == gene_name].item()  # the old df is th original one before preprocessing
+    # new indices
+    gene_row_index_in_reduced_df = row_mapping.index[row_mapping['original_index_from_matrix_dataframe'] == gene_row_index_in_old_df].item() # assumption: only one item is returned
+
+    return gene_row_index_in_reduced_df, gene_row_index_in_old_df
 
 
 def printInfoAboutDataset(dataset):
@@ -177,7 +185,33 @@ def printInfoAboutCustomConcatanatedImageFolderDataset(dataset_object):
     pass
 
 
-def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name):
+def plot_loss_convergence(loss_values):
+    
+    print("\n----- entered function plot_loss_convergence -----")
+
+    '''
+    Plot data to compare matrices
+    '''
+    plt.clf()  # clears previous plots
+    plt.plot(range(1,len(loss_values)+1), loss_values, linestyle='--', marker='o', color='b', label='Loss Values')
+    #                  X                      Y
+    plt.grid()
+    # set surroundings
+    plt.xlabel(f'Epoch index')
+    plt.ylabel(f'Loss Value')
+    # plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.title(f'Loss convergence plot of the Model\'s training')
+    plt.legend()
+    # filename = f'{dataset_name}_{model_name}_comparison'
+    # plt.savefig(f'{filename}.png', bbox_inches='tight')
+    plt.show()
+    plt.clf()
+
+    pass
+    print("\n----- finished function plot_loss_convergence -----")
+
+
+def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name, gene_name):
     
     print("\n----- entered function plot_Single_Gene_PredAndTrue -----")
 
@@ -197,7 +231,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     # set surroundings
     plt.xlabel(f'M_truth values')
     plt.ylabel(f'M_pred values')
-    plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}')
     plt.legend()
     # filename = f'{dataset_name}_{model_name}_comparison'
     # plt.savefig(f'{filename}.png', bbox_inches='tight')
@@ -205,26 +239,26 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.clf()
 
 
-    # testing !!!
+    # # testing !!!
 
-    M_truth_upscaled = [np.expm1(val) for val in list(M_truth)]
-    M_pred_upscaled = [np.expm1(val) for val in list(M_pred)]
-    # create a scatter
-    plt.scatter(x=M_truth_upscaled, y=M_pred_upscaled, label='M_truth VS M_pred')
-    # create a line
-    lower_x_bound = 0 # lower_x_bound = np.min(M_truth) - 0.1
-    upper_x_bound = np.max(M_pred_upscaled) + 1  # upper_x_bound = np.max(M_truth) + 1
-    num_of_dots_in_line = 100
-    x = np.linspace(lower_x_bound,upper_x_bound,num_of_dots_in_line) # linspace() function to create evenly-spaced points in a given interval
-    y = x  # to plot y=x we'll create a y variable that is exactly like x
-    plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
-    # set surroundings
-    plt.xlabel(f'M_truth values')
-    plt.ylabel(f'M_pred values')
-    plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.legend()
-    plt.show()
-    plt.clf()
+    # M_truth_upscaled = [np.expm1(val) for val in list(M_truth)]
+    # M_pred_upscaled = [np.expm1(val) for val in list(M_pred)]
+    # # create a scatter
+    # plt.scatter(x=M_truth_upscaled, y=M_pred_upscaled, label='M_truth VS M_pred')
+    # # create a line
+    # lower_x_bound = 0 # lower_x_bound = np.min(M_truth) - 0.1
+    # upper_x_bound = np.max(M_pred_upscaled) + 1  # upper_x_bound = np.max(M_truth) + 1
+    # num_of_dots_in_line = 100
+    # x = np.linspace(lower_x_bound,upper_x_bound,num_of_dots_in_line) # linspace() function to create evenly-spaced points in a given interval
+    # y = x  # to plot y=x we'll create a y variable that is exactly like x
+    # plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
+    # # set surroundings
+    # plt.xlabel(f'M_truth values')
+    # plt.ylabel(f'M_pred values')
+    # plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
+    # plt.legend()
+    # plt.show()
+    # plt.clf()
     
     '''
     Plot data to compare with the large biopsy image
@@ -314,6 +348,8 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     '''
     Plot !
     '''
+    print("finished preparing the plots, now just need to show on screen ....")
+
     # plot figure for M_truth !!!
     plt.figure(figsize=(8,8))
     plt.spy(low_T, markersize=4, color='lime', label='Low Values')
@@ -323,7 +359,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.legend()
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}', fontsize=15)
+    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}', fontsize=15)
     plt.show()
     plt.clf()
 
@@ -336,7 +372,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.legend()
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}', fontsize=15)
+    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}', fontsize=15)
     plt.show()
     plt.clf()
 

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet, AutoencoderNet
-from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue, printInfoAboutReducedDF
+from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue, printInfoAboutReducedDF, plot_loss_convergence
 from matplotlib import pyplot as plt
 
 
@@ -41,15 +41,17 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
     '''    
     print("****** begin training ******")
 
+    loss_value_averages_of_all_epochs = []
+
     for iteration in range(num_of_epochs):
-        print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
+        # print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
         
         # init variables for external loop
         dl_iter = iter(dl_train)  # iterator over the dataloader. called only once, outside of the loop, and from then on we use next() on that iterator
         loss_values_list = []
 
         for batch_index in range(num_of_batches):
-            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            print(f'iteration {iteration+1} of {num_of_epochs} epochs: batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             # get current batch data 
             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
             x, y, _ = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25. 
@@ -84,19 +86,26 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
             # delete unneeded tesnors from GPU to save space
             del x, y
 
-        #end of inner loop
-        print(f'\nfinished inner loop.')
+        ##end of inner loop
+        # print(f'\nfinished inner loop.')
 
 
         # data prints on the epoch that ended
         # print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
         # print(f'               average loss {np.mean(loss_values_list)}')
-        print(f'in this epoch: average loss {np.mean(loss_values_list)}')
+        average_value_this_epoch = np.mean(loss_values_list)
+        # print(f'in this epoch: average loss {average_value_this_epoch}')
+        loss_value_averages_of_all_epochs.append(average_value_this_epoch)
 
  
-    print(f'finished all epochs !')
+    print(f'finished all epochs !                                         ')  # spaces ARE intended
     print(f'which means, that this model is now trained.')
+    print(f'plotting the loss convergence for the training of this model: ')
+
+    plot_loss_convergence(loss_value_averages_of_all_epochs)
+
     print(" \ * / FINISHED train_prediction_model \ * / ")
+
     return model
 
 
@@ -130,47 +139,129 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     '''
     Test the model and print comparisons
     '''
-    ### important NOTE!  first 2 exps use ONLY ds_test, the 2 last ones use both train and test !!!!!!!!!!!! 
+    # first - get the index of the chosen
 
     if dataset_name.startswith("single_gene"):
-        M_truth, M_pred = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device, model_name=model_name, dataset_name=dataset_name) # note that this function saves a figure
+        ## perform on TRAIN data
+        print("\n## perform on TRAIN data ##")
+        M_truth, M_pred = getSingleDimPrediction(dataset=ds_train, model=trained_model, device=device)
         baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
         compare_matrices(M_truth, M_pred, Baseline=baseline)
-        plot_Single_Gene_PredAndTrue(ds_test, M_pred, M_truth, model_name, dataset_name)
+        plot_Single_Gene_PredAndTrue(ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+
+        # perform on TEST data
+        print("\n## perform on TEST data ##")
+        M_truth_test, M_pred_test = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device)
+        baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
+        compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)  #NOTE: same baseline as above - the TRAIN baseline
+        plot_Single_Gene_PredAndTrue(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
         
     elif dataset_name.startswith("k_genes"):
-        M_truth, M_pred = getKDimPrediction(dataset=ds_test, model=trained_model, device=device)
+        #
+        train_gene_index = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']].item() 
+        test_gene_index = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']].item()
+
+        ## perform on TRAIN data
+        print("\n## perform on TRAIN data ##")
+        M_truth, M_pred = getKDimPrediction(dataset=ds_train, model=trained_model, device=device) 
         baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
-                                                                                 # note - since no axis is given, `np.average` performs an average over all elements in all dimensions
+                                                                                 # note - since no axis is given, `np.average` performs an average over all elements in all dimensions        
+        print("matrix comparsions on all K genes ...")
         compare_matrices(M_truth, M_pred, Baseline=baseline)
+        print("results plot & vector comparsions on the chosen single gene ...")
+        M_pred_single_gene = M_pred[:,train_gene_index].squeeze()
+        M_truth_single_gene = M_truth[:,train_gene_index].squeeze()
+        baseline_single_gene = baseline[:,train_gene_index].squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
+        plot_Single_Gene_PredAndTrue(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+
+        # perform on TEST data
+        print("\n## perform on TEST data ##")
+        M_truth_test, M_pred_test = getKDimPrediction(dataset=ds_test, model=trained_model, device=device) 
+        baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
+        print("matrix comparsions on all K genes ...")
+        compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)
+        print("results plot & vector comparsions on the chosen single gene ...")   
+        M_pred_single_gene = M_pred_test[:,test_gene_index].squeeze()
+        M_truth_single_gene = M_truth_test[:,test_gene_index].squeeze()
+        baseline_single_gene = baseline[:,test_gene_index].squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
+        plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+
 
     elif dataset_name.startswith("NMF"):
-        ## perform comparisons on train data if this is not the augmented DS
+        #
+        train_gene_index = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
+        test_gene_index = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
+
+        ## perform on TRAIN data
+        print("\n## perform on TRAIN data ##")
         M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
+
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
         #                      orig_matrix ~       W * H           ~ W * H_pred
         M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
+        print("matrix comparsions on all genes ...")
         compare_matrices(M_truth, M_pred, Baseline=M_fast_reconstruction)
+        # prepare for the plots of the chosen gene: 
+        print("results plot & vector comparsions on the chosen single gene ...")   
+        M_pred_single_gene = M_pred[train_gene_index,:].transpose().squeeze()
+        M_truth_single_gene = M_truth[train_gene_index,:].transpose().squeeze()
+        M_fast_rec_single_gene = M_fast_reconstruction[train_gene_index,:].transpose().squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=M_fast_rec_single_gene)
+        plot_Single_Gene_PredAndTrue(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
         
-        # perform on test data
-        M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, W=ds_train.W, model=trained_model, device=device)
+        # perform on TEST data
+        print("\n## perform on TEST data ##")
+        M_truth_test, M_pred_test = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, W=ds_train.W, model=trained_model, device=device)
+
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
-        compare_matrices(M_truth, M_pred, Baseline=None)
+        print("matrix comparsions on all genes ...")
+        compare_matrices(M_truth_test, M_pred_test, Baseline=None)
+        # prepare for the plots of the chosen gene: 
+        print("results plot & vector comparsions on the chosen single gene ...")   
+        M_pred_single_gene = M_pred_test[test_gene_index,:].transpose().squeeze()
+        M_truth_single_gene = M_truth_test[test_gene_index,:].transpose().squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=None)
+        plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+
         
     elif dataset_name.startswith("AE"):
-        ## perform comparisons on train data if this is not the augmented DS
+        #
+        train_gene_index = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
+        test_gene_index = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
+
+        ## perform on TRAIN data
+        print("\n## perform on TRAIN data ##")
         M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_train, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
         #                      orig_matrix ~  Decode(Encode(M))    ~ Decode(Predict(X))
         M_fast_reconstruction = getAutoEncoder_M_fast_reconstruction(dataset=ds_train, model=trained_model, device=device)
+        print("matrix comparsions on all genes ...")
         compare_matrices(M_truth, M_pred, Baseline=M_fast_reconstruction)
+        # prepare for the plots of the chosen gene: 
+        print("results plot & vector comparsions on the chosen single gene ...")   
+        M_pred_single_gene = M_pred[train_gene_index,:].transpose().squeeze()
+        M_truth_single_gene = M_truth[train_gene_index,:].transpose().squeeze()
+        M_fast_rec_single_gene = M_fast_reconstruction[train_gene_index,:].transpose().squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=M_fast_rec_single_gene)
+        plot_Single_Gene_PredAndTrue(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
 
-        # perform on test data
-        M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_test, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
+
+        # perform on TEST data
+        print("\n## perform on TEST data ##")
+        M_truth_test, M_pred_test = getFullDimsPrediction_with_AE_DS(dataset=ds_test, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
-        compare_matrices(M_truth, M_pred, Baseline=None)
+        print("matrix comparsions on all genes ...")
+        compare_matrices(M_truth_test, M_pred_test, Baseline=None)
+        # prepare for the plots of the chosen gene: 
+        print("results plot & vector comparsions on the chosen single gene ...")   
+        M_pred_single_gene = M_pred_test[test_gene_index,:].transpose().squeeze()
+        M_truth_single_gene = M_truth_test[test_gene_index,:].transpose().squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=None)
+        plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
         
     # delete unneeded tesnors from GPU to save space
     del trained_model
@@ -179,7 +270,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     pass
 
 
-def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
+def getSingleDimPrediction(dataset, model, device):
     '''
     REMINDER:
     in 1 dim  prediction experiment we chose a single gene from matrix_df
@@ -209,13 +300,32 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
     '''
     prepare the data
     '''
-    batch_size = 20
+    # define the batch size for the dataloader
+    batch_size = 25
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
+    
+    # check if dataset is augmented (=has x8 more images than the original dataset). 
+    # note that if the dataset is augmented, we are talking about the training dataset - and if not it is the testing dataset
+    # if the dataset is augmented, then we need to use here (= in the experiment and NOT in training) only the UNAUGMENTED images.
+    # ASSUMPTION: the augmented dataset's image folder object is a concatanation dataset created by me. 
+    #             the first `dataset.num_of_images_with_no_augmentation` images from it are the only ones i need for the experiment.
+    num_of_batches = 0
+    augmented_flag = False
+    remainder = -1
+    if dataset.size_of_dataset != dataset.num_of_images_with_no_augmentation:  # meaning this dataset is augmented, meaning this is a TRAIN dataset
+        num_of_batches = (dataset.num_of_images_with_no_augmentation // batch_size)
+        augmented_flag = True
+        if (dataset.num_of_images_with_no_augmentation % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+            remainder = dataset.num_of_images_with_no_augmentation % batch_size
+    else:  # meaning this dataset is NOT augmented, meaning this is a TEST dataset
+        num_of_batches = (len(dataset) // batch_size)
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+         
+    # create the dataloader
     dl_iter = iter(dataloader)
-    num_of_batches = (len(dataset) // batch_size)
-    if (len(dataset) % batch_size) != 0:
-        num_of_batches = num_of_batches + 1
-
+    # define an empty variable for the model's forward pass iterations
     y_pred_final = None
 
     for batch_index in range(num_of_batches):
@@ -223,6 +333,11 @@ def getSingleDimPrediction(dataset, model, device, model_name, dataset_name):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+
+            # small correction if this is an augmented dataset and this is the LAST batch ... we dont want the augmented images
+            if batch_index == num_of_batches-1 and augmented_flag is True and remainder != -1:
+                split_result = torch.split(tensor=x, split_size_or_sections=remainder, dim=0)  # dim=0 means split on batch size
+                x = split_result[0]
 
             # load to device
             if device.type == 'cuda':
@@ -294,13 +409,32 @@ def getKDimPrediction(dataset, model, device):
     prepare the data
     '''
 
+    # define the batch size for the dataloader
     batch_size = 20
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  #NOTE: important !!! shuffle here MUST be false or all order is lost !!!
+    
+    # check if dataset is augmented (=has x8 more images than the original dataset). 
+    # note that if the dataset is augmented, we are talking about the training dataset - and if not it is the testing dataset
+    # if the dataset is augmented, then we need to use here (= in the experiment and NOT in training) only the UNAUGMENTED images.
+    # ASSUMPTION: the augmented dataset's image folder object is a concatanation dataset created by me. 
+    #             the first `dataset.num_of_images_with_no_augmentation` images from it are the only ones i need for the experiment.
+    num_of_batches = 0
+    augmented_flag = False
+    remainder = -1
+    if dataset.size_of_dataset != dataset.num_of_images_with_no_augmentation:  # meaning this dataset is augmented, meaning this is a TRAIN dataset
+        num_of_batches = (dataset.num_of_images_with_no_augmentation // batch_size)
+        augmented_flag = True
+        if (dataset.num_of_images_with_no_augmentation % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+            remainder = dataset.num_of_images_with_no_augmentation % batch_size
+    else:  # meaning this dataset is NOT augmented, meaning this is a TEST dataset
+        num_of_batches = (len(dataset) // batch_size)
+        if (len(dataset) % batch_size) != 0:
+            num_of_batches = num_of_batches + 1
+         
+    # create the dataloader
     dl_iter = iter(dataloader)
-    num_of_batches = (len(dataset) // batch_size)
-    if (len(dataset) % batch_size) != 0:
-        num_of_batches = num_of_batches + 1
-
+    # define an empty variable for the model's forward pass iterations
     y_pred_final = None
 
     for batch_index in range(num_of_batches):
@@ -308,6 +442,11 @@ def getKDimPrediction(dataset, model, device):
             print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+
+            # small correction if this is an augmented dataset and this is the LAST batch ... we dont want the augmented images
+            if batch_index == num_of_batches-1 and augmented_flag is True and remainder != -1:
+                split_result = torch.split(tensor=x, split_size_or_sections=remainder, dim=0)  # dim=0 means split on batch size
+                x = split_result[0]
 
             # load to device
             if device.type == 'cuda':
