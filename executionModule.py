@@ -8,9 +8,12 @@ from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet, AutoencoderNet
 from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue, printInfoAboutReducedDF, plot_loss_convergence
 from matplotlib import pyplot as plt
+import seaborn as sns
+from numpy import savetxt
 
 
-def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimizer, num_of_epochs_wanted, max_alowed_number_of_batches, device):
+###def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimizer, num_of_epochs_wanted, max_alowed_number_of_batches, device): ### TODO delete if not needed
+def train_prediction_model(model_to_train, ds_train, loss_fn, optimizer, hyperparams, model_name, dataset_name, device):
     '''
     This is the main function for training our models.
     '''
@@ -18,9 +21,14 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
     '''
     preparations
     '''
-    # for me
-    num_of_epochs = num_of_epochs_wanted
+    # for me - name changing
+    num_of_epochs = hyperparams['num_of_epochs']
+    max_alowed_number_of_batches = hyperparams['max_alowed_number_of_batches']
     model = model_to_train
+
+    # create a SHUFFLING (!) dataloader
+    dl_train = DataLoader(ds_train, batch_size=hyperparams['batch_size'], num_workers=hyperparams['num_workers'] , shuffle=True)  # NOTE: shuffle = TRUE !!!
+
     # important: load model to cuda
     if device.type == 'cuda':
         model = model.to(device=device) 
@@ -89,7 +97,6 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
         ##end of inner loop
         # print(f'\nfinished inner loop.')
 
-
         # data prints on the epoch that ended
         # print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
         # print(f'               average loss {np.mean(loss_values_list)}')
@@ -102,7 +109,7 @@ def train_prediction_model(model_to_train, ds_train, dl_train, loss_fn, optimize
     print(f'which means, that this model is now trained.')
     print(f'plotting the loss convergence for the training of this model: ')
 
-    plot_loss_convergence(loss_value_averages_of_all_epochs)
+    plot_loss_convergence(loss_value_averages_of_all_epochs, model_name, dataset_name)
 
     print(" \ * / FINISHED train_prediction_model \ * / ")
 
@@ -130,11 +137,16 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     '''
     Train the model
     '''
-    dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
-    trained_model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
-                                            optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
-                                            max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
-                                            device=device)
+    # TODO: delete if not needed
+    # dl_train = DataLoader(ds_train, hyperparams['batch_size'], shuffle=True)
+    # trained_model = train_prediction_model(model_to_train=model, ds_train=ds_train, dl_train=dl_train, loss_fn=loss_fn, 
+    #                                         optimizer=optimizer, num_of_epochs_wanted=hyperparams['num_of_epochs'], 
+    #                                         max_alowed_number_of_batches=hyperparams['max_alowed_number_of_batches'],
+    #                                         device=device)
+
+    trained_model = train_prediction_model(model_to_train=model, ds_train=ds_train, loss_fn=loss_fn, 
+                                            optimizer=optimizer, hyperparams=hyperparams, 
+                                            model_name=model_name, dataset_name=dataset_name, device=device)
     
     '''
     Test the model and print comparisons
@@ -155,11 +167,23 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
         compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)  #NOTE: same baseline as above - the TRAIN baseline
         plot_Single_Gene_PredAndTrue(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+
+        print("\n## VERIFICATIONS 091020 ##") #TODO: delete later
+        # save to csv file
+        savetxt('single_gene_test_pred_from_K_genes_exp.csv', M_pred_test, delimiter=',')
+
         
     elif dataset_name.startswith("k_genes"):
         #
         train_gene_index = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']].item() 
         test_gene_index = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']].item()
+
+        # TODO: delete these print lines later
+        t1 = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
+        t2 = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
+        print(f'--delete--  train_gene_index {train_gene_index} hyperparams[geneRowIndexIn_Reduced_Train_matrix_df] {t1}')
+        print(f'--delete--  test_gene_index {test_gene_index} hyperparams[geneRowIndexIn_Reduced_Test_matrix_df] {t2}')
+        print(f'--delete--  ds_train.mapping \n{ds_train.mapping}\nds_test.mapping \n{ds_test.mapping}\n ')
 
         ## perform on TRAIN data
         print("\n## perform on TRAIN data ##")
@@ -187,6 +211,18 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         baseline_single_gene = baseline[:,test_gene_index].squeeze()
         compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
         plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+
+        print("\n## VERIFICATIONS 091020 ##") #TODO: delete later
+        ax = sns.heatmap(M_truth_test)
+        plt.title(f'heatmap_Kgenes_M_truth_test')
+        plt.savefig(f'heatmap_Kgenes_M_truth_test.png', bbox_inches='tight')
+        plt.clf()
+        ax = sns.heatmap(M_pred_test)
+        plt.title(f'heatmap_Kgenes_M_pred_test')
+        plt.savefig(f'heatmap_Kgenes_M_pred_test.png', bbox_inches='tight')
+        plt.clf()
+        # save to csv file
+        savetxt('single_gene_test_pred_from_K_genes_exp.csv', M_pred_single_gene, delimiter=',')
 
 
     elif dataset_name.startswith("NMF"):
@@ -901,17 +937,19 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
         if (len(dataset) % batch_size) != 0:
             num_of_batches = num_of_batches + 1   
 
+    #
+    loss_value_averages_of_all_epochs = []
 
     # note 2 loops here: external and internal
     for iteration in range(num_of_epochs):
-        print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
+        # print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
         
         # init variables for external loop
         dl_iter = iter(dataloader)  # iterator over the dataloader. called only once, outside of the loop, and from then on we use next() on that iterator
         loss_values_list = []
 
         for batch_index in range(num_of_batches):
-            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            print(f'iteration {iteration+1} of {num_of_epochs} epochs: batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             # get current batch data             
             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
             
@@ -941,12 +979,23 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
             # Calling the step function on an Optimizer makes an update to its parameters
             optimizer.step()
 
-        #end of inner loop
-        print(f'\nfinished inner loop.\n')
+        ##end of inner loop
+        # print(f'\nfinished inner loop.\n')
 
         # data prints on the epoch that ended
-        print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
-        print(f'               average loss {np.mean(loss_values_list)}')
+        # print(f'in this epoch: min loss {np.min(loss_values_list)} max loss {np.max(loss_values_list)}')
+        # print(f'               average loss {np.mean(loss_values_list)}')
+        average_value_this_epoch = np.mean(loss_values_list)
+        # print(f'in this epoch: average loss {average_value_this_epoch}')
+        loss_value_averages_of_all_epochs.append(average_value_this_epoch)
+
+ 
+    print(f'finished all epochs !                                         ')  # spaces ARE intended
+    print(f'which means, that this model is now trained.')
+    print(f'plotting the loss convergence for the training of this model: ')
+
+    plot_loss_convergence(loss_value_averages_of_all_epochs, model_name, dataset_name)
+
 
     pass
     print("\n----- finished function return_trained_AE_net -----\n")

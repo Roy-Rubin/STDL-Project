@@ -5,6 +5,8 @@ cs236781_hw3/
 cs236781/
 spatialGeneExpressionData/
 old_files/
+saved_plots/
+Finished_notebook_runs_HTMLs/
 
 # Files i dont want to commit #
 ###################
@@ -15,3 +17,5 @@ old_files/
 main.py
 *.csv
 *.out
+5epoch_notebook.ipynb
+main_for_notebooks_on_server.py

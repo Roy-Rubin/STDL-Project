@@ -185,7 +185,7 @@ def printInfoAboutCustomConcatanatedImageFolderDataset(dataset_object):
     pass
 
 
-def plot_loss_convergence(loss_values):
+def plot_loss_convergence(loss_values, model_name, dataset_name):
     
     print("\n----- entered function plot_loss_convergence -----")
 
@@ -200,11 +200,11 @@ def plot_loss_convergence(loss_values):
     plt.xlabel(f'Epoch index')
     plt.ylabel(f'Loss Value')
     # plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    plt.title(f'Loss convergence plot of the Model\'s training')
+    plt.title(f'Loss convergence plot of the Model\'s training\nExperiment with model: {model_name}\n on Dataset: {dataset_name}', fontsize=15)
     plt.legend()
-    # filename = f'{dataset_name}_{model_name}_comparison'
-    # plt.savefig(f'{filename}.png', bbox_inches='tight')
-    plt.show()
+    filename = f'{dataset_name}_{model_name}_loss_conv'
+    plt.savefig(f'{filename}.png', bbox_inches='tight')
+    # plt.show()
     plt.clf()
 
     pass
@@ -233,32 +233,11 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.ylabel(f'M_pred values')
     plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}')
     plt.legend()
-    # filename = f'{dataset_name}_{model_name}_comparison'
-    # plt.savefig(f'{filename}.png', bbox_inches='tight')
-    plt.show()
+    filename = f'{dataset_name}_{model_name}_comparison'
+    plt.savefig(f'{filename}.png', bbox_inches='tight')
+    # plt.show()
     plt.clf()
 
-
-    # # testing !!!
-
-    # M_truth_upscaled = [np.expm1(val) for val in list(M_truth)]
-    # M_pred_upscaled = [np.expm1(val) for val in list(M_pred)]
-    # # create a scatter
-    # plt.scatter(x=M_truth_upscaled, y=M_pred_upscaled, label='M_truth VS M_pred')
-    # # create a line
-    # lower_x_bound = 0 # lower_x_bound = np.min(M_truth) - 0.1
-    # upper_x_bound = np.max(M_pred_upscaled) + 1  # upper_x_bound = np.max(M_truth) + 1
-    # num_of_dots_in_line = 100
-    # x = np.linspace(lower_x_bound,upper_x_bound,num_of_dots_in_line) # linspace() function to create evenly-spaced points in a given interval
-    # y = x  # to plot y=x we'll create a y variable that is exactly like x
-    # plt.plot(x, y, '--k', label='y=x plot') # create a line # "--k" means black dashed line
-    # # set surroundings
-    # plt.xlabel(f'M_truth values')
-    # plt.ylabel(f'M_pred values')
-    # plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\ngene chosen: {dataset.gene_name}')
-    # plt.legend()
-    # plt.show()
-    # plt.clf()
     
     '''
     Plot data to compare with the large biopsy image
@@ -319,7 +298,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     mid_val = list_sorted[int(3 * n/5)-1]
     high_val = list_sorted[int(4 * n/5)-1]
     # create the (sparse de-facto but not sparse python-wise) matrices
-    # init them empty
+    # init them empty. T for truth, P for pred
     fill_value = 0  
     low_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
     mid_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
@@ -360,7 +339,9 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
     plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}', fontsize=15)
-    plt.show()
+    filename = f'{dataset_name}_{model_name}_M_truth_visualization'
+    plt.savefig(f'{filename}.png', bbox_inches='tight')
+    # plt.show()
     plt.clf()
 
     # plot figure for M_pred !!!
@@ -373,7 +354,9 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
     plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}', fontsize=15)
-    plt.show()
+    filename = f'{dataset_name}_{model_name}_M_pred_visualization'
+    plt.savefig(f'{filename}.png', bbox_inches='tight')
+    # plt.show()
     plt.clf()
 
     '''
