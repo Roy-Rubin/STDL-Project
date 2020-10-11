@@ -14,7 +14,6 @@ Finished_notebook_runs_HTMLs/
 *.idea
 *.ipynb_checkpoints
 *.png
-main.py
 *.csv
 *.out
 5epoch_notebook.ipynb

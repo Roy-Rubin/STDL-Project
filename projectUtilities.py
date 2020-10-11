@@ -2,9 +2,14 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
+
+matplotlib.use('Agg') # TODO: delete later if you want to use plot in jupyter notebook
+
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 import matplotlib.patches as mpatches
+
+
 
 
 def compare_matrices(M_truth, M_pred, Baseline=None): #note the None if not needed
@@ -192,6 +197,7 @@ def plot_loss_convergence(loss_values, model_name, dataset_name):
     '''
     Plot data to compare matrices
     '''
+    plt.ioff() #TODO: this line needs to be deleted when running anythin on the notebook
     plt.clf()  # clears previous plots
     plt.plot(range(1,len(loss_values)+1), loss_values, linestyle='--', marker='o', color='b', label='Loss Values')
     #                  X                      Y
@@ -218,6 +224,7 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     '''
     Plot data to compare matrices
     '''
+    plt.ioff() #TODO: this line needs to be deleted when running anythin on the notebook
     plt.clf()  # clears previous plots
     # create a scatter
     plt.scatter(x=M_truth, y=M_pred, label='M_truth VS M_pred')

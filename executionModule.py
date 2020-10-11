@@ -7,6 +7,11 @@ import pandas as pd
 from sklearn.decomposition import NMF
 from deepNetworkArchitechture import ConvNet, AutoencoderNet
 from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue, printInfoAboutReducedDF, plot_loss_convergence
+
+import matplotlib
+
+matplotlib.use('Agg') # TODO: delete later if you want to use plot in jupyter notebook
+
 from matplotlib import pyplot as plt
 import seaborn as sns
 from numpy import savetxt
@@ -52,16 +57,17 @@ def train_prediction_model(model_to_train, ds_train, loss_fn, optimizer, hyperpa
     loss_value_averages_of_all_epochs = []
 
     for iteration in range(num_of_epochs):
-        # print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
+        print(f'iteration {iteration+1} of {num_of_epochs} epochs') # TODO: comment this line if  working on notebook
         
         # init variables for external loop
         dl_iter = iter(dl_train)  # iterator over the dataloader. called only once, outside of the loop, and from then on we use next() on that iterator
         loss_values_list = []
 
         for batch_index in range(num_of_batches):
-            print(f'iteration {iteration+1} of {num_of_epochs} epochs: batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #print(f'iteration {iteration+1} of {num_of_epochs} epochs: batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #                                                                                                                         # NOTE: this only works in the notebook - # TODO uncomment this line when working on notebook
             # get current batch data 
-            data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
+            data = next(dl_iter)  # note: "data" variable is a list with 3 elements
             x, y, _ = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25. 
                             # NOTE that the third argument recieved here is "column" and is not currently needed
             
@@ -175,15 +181,23 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         
     elif dataset_name.startswith("k_genes"):
         #
+        # TODO: delete these print lines later
+#        old_df_index_train = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
+#        old_df_index_test = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
+#        print(f'--delete-- old_df_index_train {old_df_index_train} ')
+#        print(f'--delete-- old_df_index_test {old_df_index_test} ')
+#        train_gene_index_no_item = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']]  
+#        test_gene_index_no_item = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']]   
+#        print(f'--delete-- train_gene_index_no_item {train_gene_index_no_item} train_gene_index_no_item.item() {train_gene_index_no_item.item()}')
+#        print(f'--delete-- test_gene_index_no_item {test_gene_index_no_item} test_gene_index_no_item.item() {test_gene_index_no_item.item()}')
+#        t1 = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
+#        t2 = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
+#        print(f'--delete--  train_gene_index {train_gene_index} hyperparams[geneRowIndexIn_Reduced_Train_matrix_df] {t1}')
+#        print(f'--delete--  test_gene_index {test_gene_index} hyperparams[geneRowIndexIn_Reduced_Test_matrix_df] {t2}')
+#        print(f'--delete--  ds_train.mapping \n{ds_train.mapping}\nds_test.mapping \n{ds_test.mapping}\n ')
+        
         train_gene_index = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']].item() 
         test_gene_index = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']].item()
-
-        # TODO: delete these print lines later
-        t1 = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
-        t2 = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
-        print(f'--delete--  train_gene_index {train_gene_index} hyperparams[geneRowIndexIn_Reduced_Train_matrix_df] {t1}')
-        print(f'--delete--  test_gene_index {test_gene_index} hyperparams[geneRowIndexIn_Reduced_Test_matrix_df] {t2}')
-        print(f'--delete--  ds_train.mapping \n{ds_train.mapping}\nds_test.mapping \n{ds_test.mapping}\n ')
 
         ## perform on TRAIN data
         print("\n## perform on TRAIN data ##")
@@ -366,7 +380,8 @@ def getSingleDimPrediction(dataset, model, device):
 
     for batch_index in range(num_of_batches):
         with torch.no_grad():  # no need to keep track of gradients since we are only using the forward of the model
-            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #      \r doesnt work on a text file
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
 
@@ -475,7 +490,9 @@ def getKDimPrediction(dataset, model, device):
 
     for batch_index in range(num_of_batches):
         with torch.no_grad():  # no need to keep track of gradients since we are only using the forward of the model
-            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #      \r doesnt work on a text file
+            
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
 
@@ -577,7 +594,9 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
 
     for batch_index in range(num_of_batches):
         with torch.no_grad():  # no need to keep track of gradients since we are only using the forward of the model
-            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #      \r doesnt work on a text file
+            
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
 
@@ -694,7 +713,9 @@ def getFullDimsPrediction_with_AE_DS(dataset, AEnet, model, device):
 
     for batch_index in range(num_of_batches):
         with torch.no_grad():  # no need to keep track of gradients since we are only using the forward of the model
-            print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #      \r doesnt work on a text file
+            
             data = next(dl_iter)
             x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
 
@@ -899,9 +920,9 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
                     # then, I found out that if the batch size is not 1, i cannot use the networks encoder network inside AEnet
                     # because is expects 33K features * 5 batch_size as input - but in __get_item__ (which is the entire end goal of our current method)
                     # we only get one item at a time.... and so - batch size was changed to 1.
-                    # later on, this can be improved.
+                    # TODO: later on, this can be improved.
     dataset = dataset_from_matrix_df
-    dataloader = DataLoader(dataset, batch_size, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size, shuffle=True)  # note the shuffle, note the num of workers (none==0) !!!
     x0 = dataset[0]
     num_of_features = len(x0)
 
@@ -942,14 +963,15 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
 
     # note 2 loops here: external and internal
     for iteration in range(num_of_epochs):
-        # print(f'\niteration {iteration+1} of {num_of_epochs} epochs')
+        print(f'iteration {iteration+1} of {num_of_epochs} epochs') # this should be commented in notebook
         
         # init variables for external loop
         dl_iter = iter(dataloader)  # iterator over the dataloader. called only once, outside of the loop, and from then on we use next() on that iterator
         loss_values_list = []
 
         for batch_index in range(num_of_batches):
-            print(f'iteration {iteration+1} of {num_of_epochs} epochs: batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
+            #print(f'iteration {iteration+1} of {num_of_epochs} epochs: batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes 
+            #                                                                                                                         # NOTE: this only works in the notebook
             # get current batch data             
             data = next(dl_iter)  # note: "data" variable is a list with 2 elements:  data[0] is: <class 'torch.Tensor'> data[1] is: <class 'torch.Tensor'>
             
@@ -978,6 +1000,9 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
 
             # Calling the step function on an Optimizer makes an update to its parameters
             optimizer.step()
+            
+            # Delete the unneeded vectors to free up space in the GPU
+            del x, x_reconstructed
 
         ##end of inner loop
         # print(f'\nfinished inner loop.\n')
@@ -994,7 +1019,7 @@ def get_Trained_AEnet(dataset_from_matrix_df, z_dim, num_of_epochs, device):
     print(f'which means, that this model is now trained.')
     print(f'plotting the loss convergence for the training of this model: ')
 
-    plot_loss_convergence(loss_value_averages_of_all_epochs, model_name, dataset_name)
+    plot_loss_convergence(loss_value_averages_of_all_epochs, model_name='AE', dataset_name='matrix_dataframe train')
 
 
     pass
