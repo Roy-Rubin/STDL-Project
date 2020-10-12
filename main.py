@@ -319,84 +319,85 @@ def main():
     # ## Phase 2: Single Gene Prediction
 
     # TODO: commented because already executed in batch
-#    hyperparameters['num_of_epochs'] = 20
-#
-#    executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
-#                                ds_test=custom_DS_SingleValuePerImg_test,
-#                                hyperparams=hyperparameters, 
-#                                device=device, 
-#                                model_name='BasicConvNet', 
-#                                dataset_name='single_gene')
-#
-#    hyperparameters['num_of_epochs'] = 40
-#
-#    executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
-#                                ds_test=custom_DS_SingleValuePerImg_test,
-#                                hyperparams=hyperparameters, 
-#                                device=device, 
-#                                model_name='DensetNet121', 
-#                                dataset_name='single_gene')
+    hyperparameters['num_of_epochs'] = 20
+
+    executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
+                                ds_test=custom_DS_SingleValuePerImg_test,
+                                hyperparams=hyperparameters, 
+                                device=device, 
+                                model_name='BasicConvNet', 
+                                dataset_name='single_gene')
+
+    hyperparameters['num_of_epochs'] = 40
+
+    executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
+                                ds_test=custom_DS_SingleValuePerImg_test,
+                                hyperparams=hyperparameters, 
+                                device=device, 
+                                model_name='DensetNet121', 
+                                dataset_name='single_gene')
 
 
 
-#    # ## Phase 3: K genes prediction
-#
-#    hyperparameters['num_of_epochs'] = 20
-#
-#    executionModule.runExperiment(ds_train=custom_DS_KGenesWithHighestVariance_augmented, 
-#                                ds_test=custom_DS_KGenesWithHighestVariance_test,
-#                                hyperparams=hyperparameters, 
-#                                device=device, 
-#                                model_name='BasicConvNet', 
-#                                dataset_name='k_genes')
-#
-#
-#    hyperparameters['num_of_epochs'] = 40
-#
-#    executionModule.runExperiment(ds_train=custom_DS_KGenesWithHighestVariance_augmented, 
-#                                ds_test=custom_DS_KGenesWithHighestVariance_test,
-#                                hyperparams=hyperparameters, 
-#                                device=device, 
-#                                model_name='DensetNet121', 
-#                                dataset_name='k_genes')
-#
-#
-#    # ## Phase 4: All genes prediction - using dimensionality reduction techniques
-#    # 
-#    # ### 4.1: Prediction using dimensionality reduction technique NMF
-#
-#    hyperparameters['num_of_epochs'] = 20
-#
-#    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
-#                                ds_test=custom_DS_LatentTensor_NMF_test,
-#                                hyperparams=hyperparameters, 
-#                                device=device, 
-#                                model_name='BasicConvNet', 
-#                                dataset_name='NMF')
-#
-#
-#    hyperparameters['num_of_epochs'] = 40
-#
-#    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
-#                                ds_test=custom_DS_LatentTensor_NMF_test,
-#                                hyperparams=hyperparameters, 
-#                                device=device, 
-#                                model_name='DensetNet121', 
-#                                dataset_name='NMF')
+    # ## Phase 3: K genes prediction
+
+    hyperparameters['num_of_epochs'] = 20
+
+    executionModule.runExperiment(ds_train=custom_DS_KGenesWithHighestVariance_augmented, 
+                                ds_test=custom_DS_KGenesWithHighestVariance_test,
+                                hyperparams=hyperparameters, 
+                                device=device, 
+                                model_name='BasicConvNet', 
+                                dataset_name='k_genes')
+
+
+    hyperparameters['num_of_epochs'] = 40
+
+    executionModule.runExperiment(ds_train=custom_DS_KGenesWithHighestVariance_augmented, 
+                                ds_test=custom_DS_KGenesWithHighestVariance_test,
+                                hyperparams=hyperparameters, 
+                                device=device, 
+                                model_name='DensetNet121', 
+                                dataset_name='k_genes')
+
+
+    # ## Phase 4: All genes prediction - using dimensionality reduction techniques
+    # 
+    # ### 4.1: Prediction using dimensionality reduction technique NMF
+
+    hyperparameters['num_of_epochs'] = 20
+
+    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
+                               ds_test=custom_DS_LatentTensor_NMF_test,
+                               hyperparams=hyperparameters, 
+                               device=device, 
+                               model_name='BasicConvNet', 
+                               dataset_name='NMF')
+
+
+    hyperparameters['num_of_epochs'] = 40
+
+    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
+                               ds_test=custom_DS_LatentTensor_NMF_test,
+                               hyperparams=hyperparameters, 
+                               device=device, 
+                               model_name='DensetNet121', 
+                               dataset_name='NMF')
 
 
     # ### 4.2: Prediction using dimensionality reduction technique AE
 
     
     hyperparameters['num_workers'] = 0     # !!!
+    
     hyperparameters['num_of_epochs'] = 20
 
     executionModule.runExperiment(ds_train=custom_DS_LatentTensor_AE_augmented, 
-                                ds_test=custom_DS_LatentTensor_AE_test,
-                                hyperparams=hyperparameters, 
-                                device=device, 
-                                model_name='BasicConvNet', 
-                                dataset_name='AE')
+                               ds_test=custom_DS_LatentTensor_AE_test,
+                               hyperparams=hyperparameters, 
+                               device=device, 
+                               model_name='BasicConvNet', 
+                               dataset_name='AE')
 
     hyperparameters['num_of_epochs'] = 40
 

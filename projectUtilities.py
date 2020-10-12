@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 import matplotlib.patches as mpatches
 
+import seaborn as sns
 
 
 
@@ -17,7 +18,7 @@ def compare_matrices(M_truth, M_pred, Baseline=None): #note the None if not need
     method - calculate distance between matrices
     '''
     if Baseline is None:
-        print(f'recieved Baseline=None. errors with it will be 0')
+        print(f'recieved Baseline=None. distances calculated with it will be automaticaly set to 0')
     error1 = calculate_distance_between_matrices(M_truth, M_pred)
     error2 = calculate_distance_between_matrices(M_truth, Baseline)
     error3 = calculate_distance_between_matrices(M_pred, Baseline)
@@ -53,7 +54,8 @@ def calculate_distance_between_matrices(matrix1,matrix2):
     '''
     temp = m1-m2
     distance = np.linalg.norm(temp)  
-    return distance
+    distance_averaged = distance / m1.size  # divide the norm result by the number of samples (if its a vector) or the number of **entries** (if its a matrix)
+    return distance_averaged
 
 
 def get_variance_of_gene(gene_name, matrix_df, row_mapping, features_df):
@@ -209,17 +211,33 @@ def plot_loss_convergence(loss_values, model_name, dataset_name):
     plt.title(f'Loss convergence plot of the Model\'s training\nExperiment with model: {model_name}\n on Dataset: {dataset_name}', fontsize=15)
     plt.legend()
     filename = f'{dataset_name}_{model_name}_loss_conv'
-    plt.savefig(f'{filename}.png', bbox_inches='tight')
+    plt.savefig(f'saved_plots_loss_convergence/{filename}.png', bbox_inches='tight')
     # plt.show()
     plt.clf()
+    plt.close()
 
     pass
     print("\n----- finished function plot_loss_convergence -----")
 
 
-def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_name, gene_name):
+def plot_heatmaps(M_pred, M_truth, train_or_test: str):
+        ax = sns.heatmap(M_truth)
+        plt.title(f'heatmap Kgenes M_truth')
+        filename = f'heatmap_Kgenes_M_truth' + train_or_test
+        plt.savefig(f'saved_plots_heatmaps/{filename}.png', bbox_inches='tight')
+        plt.clf()
+        plt.close()
+        ax = sns.heatmap(M_pred)
+        plt.title(f'heatmap Kgenes M_pred')
+        filename = f'heatmap_Kgenes_M_pred' + train_or_test
+        plt.savefig(f'saved_plots_heatmaps/{filename}.png', bbox_inches='tight')
+        plt.clf()
+        plt.close()
+
+
+def plot_SingleGene_PredAndTrue_ScatterComparison(dataset, M_pred, M_truth, model_name, dataset_name, gene_name):
     
-    print("\n----- entered function plot_Single_Gene_PredAndTrue -----")
+    print("\n----- entered function plot_SingleGene_PredAndTrue_ScatterComparison -----")
 
     '''
     Plot data to compare matrices
@@ -238,13 +256,18 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     # set surroundings
     plt.xlabel(f'M_truth values')
     plt.ylabel(f'M_pred values')
-    plt.title(f'Result of comparison between M_truth VS M_pred\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}')
+    plt.title(f'Comparison between M_truth VS M_pred for the gene: {gene_name}\nModel: {model_name} & Dataset: {dataset_name}')
     plt.legend()
-    filename = f'{dataset_name}_{model_name}_comparison'
-    plt.savefig(f'{filename}.png', bbox_inches='tight')
+    filename = f'{dataset_name}_{model_name}_scatter_comparison'
+    plt.savefig(f'saved_plots_scatter_comparisons/{filename}.png', bbox_inches='tight')
     # plt.show()
     plt.clf()
+    plt.close()
 
+
+def plot_SingleGene_PredAndTrue_ColorVisualisation(dataset, M_pred, M_truth, model_name, dataset_name, gene_name):
+    
+    print("\n----- entered function plot_SingleGene_PredAndTrue_ColorVisualisation -----")
     
     '''
     Plot data to compare with the large biopsy image
@@ -336,22 +359,29 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     '''
     print("finished preparing the plots, now just need to show on screen ....")
 
-    # plot figure for M_truth !!!
-    plt.figure(figsize=(8,8))
-    plt.spy(low_T, markersize=4, color='lime', label='Low Values')
-    plt.spy(mid_T, markersize=4, color='yellow', label='Medium Values')
-    plt.spy(high_T, markersize=4, color='deepskyblue', label='High Values')  # maybe 'violet' instead ?
-    plt.spy(very_high_T, markersize=4, color='red', label='Very High Values')
-    plt.legend()
-    plt.xlabel(f'X coordinates')
-    plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_truth values\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}', fontsize=15)
-    filename = f'{dataset_name}_{model_name}_M_truth_visualization'
-    plt.savefig(f'{filename}.png', bbox_inches='tight')
-    # plt.show()
-    plt.clf()
+    # plot figure for M_truth !!! only if one does not exist already... to avoid duplications
+    filename = f'M_truth_visualization'
+    if 'Train' in dataset_name:
+        filename += '_Train'
+    else:
+        filename += '_Test'
+    import os.path
+    if not os.path.isfile(f'saved_plots_color_visualisation/{filename}.png'): # meaning this file does not exist, and needs to be created
+        plt.figure(figsize=(8,8))
+        plt.spy(low_T, markersize=4, color='lime', label='Low Values')
+        plt.spy(mid_T, markersize=4, color='yellow', label='Medium Values')
+        plt.spy(high_T, markersize=4, color='deepskyblue', label='High Values')  # maybe 'violet' instead ?
+        plt.spy(very_high_T, markersize=4, color='red', label='Very High Values')
+        plt.legend()
+        plt.xlabel(f'X coordinates')
+        plt.ylabel(f'Y coordinates')
+        plt.title(f'Plot of M_truth values\nChosen Gene: {gene_name}', fontsize=15)
+        plt.savefig(f'saved_plots_color_visualisation/{filename}.png', bbox_inches='tight')
+        # plt.show()
+        plt.clf()
+        plt.close()
 
-    # plot figure for M_pred !!!
+    # plot figure for M_pred !!! This will always need to be created
     plt.figure(figsize=(8,8))
     plt.spy(low_P, markersize=4, color='lime', label='Low Values')
     plt.spy(mid_P, markersize=4, color='yellow', label='Medium Values')
@@ -360,11 +390,12 @@ def plot_Single_Gene_PredAndTrue(dataset, M_pred, M_truth, model_name, dataset_n
     plt.legend()
     plt.xlabel(f'X coordinates')
     plt.ylabel(f'Y coordinates')
-    plt.title(f'Plot of M_pred values\nSingle Gene experiment with model: {model_name}\nChosen Gene: {gene_name} & Dataset: {dataset_name}', fontsize=15)
-    filename = f'{dataset_name}_{model_name}_M_pred_visualization'
+    plt.title(f'Plot of M_pred values\nPrediction visualisation on the chosen gene: {gene_name}\nModel: {model_name} & Dataset: {dataset_name}', fontsize=15)
+    filename = f'saved_plots_color_visualisation/{dataset_name}_{model_name}_M_pred_visualization'
     plt.savefig(f'{filename}.png', bbox_inches='tight')
     # plt.show()
     plt.clf()
+    plt.close()
 
     '''
     final note:

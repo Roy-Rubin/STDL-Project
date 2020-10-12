@@ -5,8 +5,8 @@ import torchvision
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import NMF
-from deepNetworkArchitechture import ConvNet, AutoencoderNet
-from projectUtilities import compare_matrices, calculate_distance_between_matrices, printInfoAboutDataset, plot_Single_Gene_PredAndTrue, printInfoAboutReducedDF, plot_loss_convergence
+from deepNetworkArchitechture import *
+from projectUtilities import *
 
 import matplotlib
 
@@ -165,14 +165,18 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         M_truth, M_pred = getSingleDimPrediction(dataset=ds_train, model=trained_model, device=device)
         baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
         compare_matrices(M_truth, M_pred, Baseline=baseline)
-        plot_Single_Gene_PredAndTrue(ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        
 
         # perform on TEST data
         print("\n## perform on TEST data ##")
         M_truth_test, M_pred_test = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device)
         baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
         compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)  #NOTE: same baseline as above - the TRAIN baseline
-        plot_Single_Gene_PredAndTrue(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        
 
         print("\n## VERIFICATIONS 091020 ##") #TODO: delete later
         # save to csv file
@@ -180,63 +184,41 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
 
         
     elif dataset_name.startswith("k_genes"):
-        #
-        # TODO: delete these print lines later
-#        old_df_index_train = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
-#        old_df_index_test = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
-#        print(f'--delete-- old_df_index_train {old_df_index_train} ')
-#        print(f'--delete-- old_df_index_test {old_df_index_test} ')
-#        train_gene_index_no_item = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']]  
-#        test_gene_index_no_item = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']]   
-#        print(f'--delete-- train_gene_index_no_item {train_gene_index_no_item} train_gene_index_no_item.item() {train_gene_index_no_item.item()}')
-#        print(f'--delete-- test_gene_index_no_item {test_gene_index_no_item} test_gene_index_no_item.item() {test_gene_index_no_item.item()}')
-#        t1 = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
-#        t2 = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
-#        print(f'--delete--  train_gene_index {train_gene_index} hyperparams[geneRowIndexIn_Reduced_Train_matrix_df] {t1}')
-#        print(f'--delete--  test_gene_index {test_gene_index} hyperparams[geneRowIndexIn_Reduced_Test_matrix_df] {t2}')
-#        print(f'--delete--  ds_train.mapping \n{ds_train.mapping}\nds_test.mapping \n{ds_test.mapping}\n ')
-        
+        #       
         train_gene_index = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']].item() 
         test_gene_index = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']].item()
 
         ## perform on TRAIN data
         print("\n## perform on TRAIN data ##")
         M_truth, M_pred = getKDimPrediction(dataset=ds_train, model=trained_model, device=device) 
-        baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
-                                                                                 # note - since no axis is given, `np.average` performs an average over all elements in all dimensions        
         print("matrix comparsions on all K genes ...")
+        num_rows = M_truth.shape[0] 
+        baseline = np.tile(A=np.average(M_truth, axis=0), reps=(num_rows,1)) # create an average of every gene's value on all of the samples - then multiply the result in the num of samples. meaning, each sample has the average value of each gene
         compare_matrices(M_truth, M_pred, Baseline=baseline)
         print("results plot & vector comparsions on the chosen single gene ...")
         M_pred_single_gene = M_pred[:,train_gene_index].squeeze()
         M_truth_single_gene = M_truth[:,train_gene_index].squeeze()
         baseline_single_gene = baseline[:,train_gene_index].squeeze()
         compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
-        plot_Single_Gene_PredAndTrue(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_heatmaps(M_pred, M_truth, train_or_test='Train')
 
         # perform on TEST data
         print("\n## perform on TEST data ##")
         M_truth_test, M_pred_test = getKDimPrediction(dataset=ds_test, model=trained_model, device=device) 
-        baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
         print("matrix comparsions on all K genes ...")
+        num_rows = M_truth_test.shape[0] 
+        baseline = np.tile(A=np.average(M_truth, axis=0), reps=(num_rows,1)) # NOTE: this is on TRAIN DATA !!! # create an average of every gene's value on all of the samples - then multiply the result in the num of samples. meaning, each sample has the average value of each gene
         compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)
         print("results plot & vector comparsions on the chosen single gene ...")   
         M_pred_single_gene = M_pred_test[:,test_gene_index].squeeze()
         M_truth_single_gene = M_truth_test[:,test_gene_index].squeeze()
         baseline_single_gene = baseline[:,test_gene_index].squeeze()
         compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
-        plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
-
-        print("\n## VERIFICATIONS 091020 ##") #TODO: delete later
-        ax = sns.heatmap(M_truth_test)
-        plt.title(f'heatmap_Kgenes_M_truth_test')
-        plt.savefig(f'heatmap_Kgenes_M_truth_test.png', bbox_inches='tight')
-        plt.clf()
-        ax = sns.heatmap(M_pred_test)
-        plt.title(f'heatmap_Kgenes_M_pred_test')
-        plt.savefig(f'heatmap_Kgenes_M_pred_test.png', bbox_inches='tight')
-        plt.clf()
-        # save to csv file
-        savetxt('single_gene_test_pred_from_K_genes_exp.csv', M_pred_single_gene, delimiter=',')
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_heatmaps(M_pred_test, M_truth_test, train_or_test='Test')
 
 
     elif dataset_name.startswith("NMF"):
@@ -244,14 +226,14 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         train_gene_index = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
         test_gene_index = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
 
-        ## perform on TRAIN data
+        ### perform on TRAIN data ###
         print("\n## perform on TRAIN data ##")
         M_truth, M_pred = getFullDimsPrediction_with_NMF_DS(dataset=ds_train, W=ds_train.W, model=trained_model, device=device)
 
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
         #                      orig_matrix ~       W * H           ~ W * H_pred
-        M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
         print("matrix comparsions on all genes ...")
+        M_fast_reconstruction = np.matmul(ds_train.W, ds_train.H)
         compare_matrices(M_truth, M_pred, Baseline=M_fast_reconstruction)
         # prepare for the plots of the chosen gene: 
         print("results plot & vector comparsions on the chosen single gene ...")   
@@ -259,30 +241,40 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         M_truth_single_gene = M_truth[train_gene_index,:].transpose().squeeze()
         M_fast_rec_single_gene = M_fast_reconstruction[train_gene_index,:].transpose().squeeze()
         compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=M_fast_rec_single_gene)
-        plot_Single_Gene_PredAndTrue(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        # plot comparisons of M_pred and M_truth
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        # plot comparisons of M_fast_rec and M_truth
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_fast_rec_single_gene, M_truth_single_gene, 'fast_rec', dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_fast_rec_single_gene, M_truth_single_gene, 'fast_rec', dataset_name + ' Train', hyperparams['gene_name'])
+
         
-        # perform on TEST data
+        ### perform on TEST data ###
         print("\n## perform on TEST data ##")
         M_truth_test, M_pred_test = getFullDimsPrediction_with_NMF_DS(dataset=ds_test, W=ds_train.W, model=trained_model, device=device)
-
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
         print("matrix comparsions on all genes ...")
-        compare_matrices(M_truth_test, M_pred_test, Baseline=None)
+        num_cols = M_truth_test.shape[1] 
+        baseline = np.tile(A=np.average(M_truth, axis=1).reshape(-1,1), reps=(1,num_cols)) # NOTE: this is on TRAIN DATA !!! # create an average of every gene's value on all of the samples - then multiply the result in the num of samples. meaning, each sample has the average value of each gene # NOTE: see the reshape to turn the `row` into a `column`
+        compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)
         # prepare for the plots of the chosen gene: 
         print("results plot & vector comparsions on the chosen single gene ...")   
-        M_pred_single_gene = M_pred_test[test_gene_index,:].transpose().squeeze()
-        M_truth_single_gene = M_truth_test[test_gene_index,:].transpose().squeeze()
-        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=None)
-        plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
-
+        M_pred_single_gene = M_pred_test[test_gene_index, :].transpose().squeeze()
+        M_truth_single_gene = M_truth_test[test_gene_index, :].transpose().squeeze()
+        baseline_single_gene = baseline[test_gene_index, :].squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
+        # plot comparisons of M_pred and M_truth
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        
         
     elif dataset_name.startswith("AE"):
         #
         train_gene_index = hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']
         test_gene_index = hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']
 
-        ## perform on TRAIN data
+        ### perform on TRAIN data ###
         print("\n## perform on TRAIN data ##")
         M_truth, M_pred = getFullDimsPrediction_with_AE_DS(dataset=ds_train, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
         # train-error comparisons: M_truth ~ M_fast_reconstruction ~ M_pred
@@ -296,22 +288,35 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         M_truth_single_gene = M_truth[train_gene_index,:].transpose().squeeze()
         M_fast_rec_single_gene = M_fast_reconstruction[train_gene_index,:].transpose().squeeze()
         compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=M_fast_rec_single_gene)
-        plot_Single_Gene_PredAndTrue(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        # plot comparisons of M_pred and M_truth
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        # plot comparisons of M_fast_rec and M_truth
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_fast_rec_single_gene, M_truth_single_gene, 'fast_rec', dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_fast_rec_single_gene, M_truth_single_gene, 'fast_rec', dataset_name + ' Train', hyperparams['gene_name'])
 
 
-        # perform on TEST data
+        ### perform on TEST data ###
         print("\n## perform on TEST data ##")
         M_truth_test, M_pred_test = getFullDimsPrediction_with_AE_DS(dataset=ds_test, AEnet=ds_train.autoEncoder, model=trained_model, device=device)
+
         # test-error comparisons: M_truth ~ M_pred
         #                     orig_matrix ~ W * H_pred
         print("matrix comparsions on all genes ...")
-        compare_matrices(M_truth_test, M_pred_test, Baseline=None)
+        num_cols = M_truth_test.shape[1] 
+        baseline = np.tile(A=np.average(M_truth, axis=1).reshape(-1,1), reps=(1,num_cols)) # NOTE: this is on TRAIN DATA !!! # create an average of every gene's value on all of the samples - then multiply the result in the num of samples. meaning, each sample has the average value of each gene # NOTE: see the reshape to turn the `row` into a `column`
+        compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)
         # prepare for the plots of the chosen gene: 
         print("results plot & vector comparsions on the chosen single gene ...")   
-        M_pred_single_gene = M_pred_test[test_gene_index,:].transpose().squeeze()
-        M_truth_single_gene = M_truth_test[test_gene_index,:].transpose().squeeze()
-        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=None)
-        plot_Single_Gene_PredAndTrue(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        M_pred_single_gene = M_pred_test[test_gene_index, :].transpose().squeeze()
+        M_truth_single_gene = M_truth_test[test_gene_index, :].transpose().squeeze()
+        baseline_single_gene = baseline[test_gene_index, :].squeeze()
+        compare_matrices(M_truth_single_gene, M_pred_single_gene, Baseline=baseline_single_gene)
+        # plot comparisons of M_pred and M_truth
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation(ds_test, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        
+        
         
     # delete unneeded tesnors from GPU to save space
     del trained_model
