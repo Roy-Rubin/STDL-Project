@@ -1,0 +1,325 @@
+*** SLURM BATCH JOB 'STDL_roy' STARTING ***
+*** Activating environment STDL ***
+*** finished Activating the environment ***
+Got to main file. beginning !
+cuda debugging allowed
+cuda device count: 1
+Using device: cuda
+device name: GeForce RTX 2080
+torch.cuda.device(0): <torch.cuda.device object at 0x7fcd27d858d0>
+Memory Usage:
+Allocated: 0.0 GB
+Cached:    0.0 GB
+
+----- entered function load_dataset_from_pictures_folder -----
+
+----- finished function load_dataset_from_pictures_folder -----
+
+
+----- entered function load_dataset_from_pictures_folder -----
+
+----- finished function load_dataset_from_pictures_folder -----
+
+
+----- entered function load_dataset_from_pictures_folder -----
+
+----- finished function load_dataset_from_pictures_folder -----
+
+
+----- entered function load_dataframes_from_mtx_and_tsv -----
+started reading features.tsv
+V  finished reading features.tsv
+started reading barcodes.tsv
+V  finished reading barcodes.tsv
+started reading matrix.mtx. this might take some time ...
+V  finished reading matrix.mtx
+adjusting matrix_dataframe
+V  finished working on matrix_dataframe
+
+----- finished function load_dataframes_from_mtx_and_tsv -----
+
+
+----- entered function load_dataframes_from_mtx_and_tsv -----
+started reading features.tsv
+V  finished reading features.tsv
+started reading barcodes.tsv
+V  finished reading barcodes.tsv
+started reading matrix.mtx. this might take some time ...
+V  finished reading matrix.mtx
+adjusting matrix_dataframe
+V  finished working on matrix_dataframe
+
+----- finished function load_dataframes_from_mtx_and_tsv -----
+
+cutting samples that dont have mathching images in the image folder from the dataframe ...
+V   done :)
+
+cutting samples that dont have mathching images in the image folder from the dataframe ...
+V   done :)
+
+checking for genes (rows) that contain less than B counts in both dataframes ...
+discarding relevant rows ...
+performing log1P transformation of the dataframe ...
+
+performing log1P transformation of the dataframe ...
+
+
+print data regarding the reduced dataframe:
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 18077 entries, 0 to 18076
+Columns: 3813 entries, 0 to 3812
+dtypes: Sparse[float64, 0.0](3813)
+memory usage: 220.7 MB
+None
+   0         1     2     3     4     ...  3808  3809  3810  3811  3812
+0   0.0  0.000000   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+1   0.0  1.098612   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+2   0.0  0.000000   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+3   0.0  0.000000   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+4   0.0  0.693147   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+
+[5 rows x 3813 columns]
+
+min value in matrix_dataframe 0.0 max value in matrix_dataframe 8.62748154531036
+
+median value in matrix_dataframe 0.0 mean value in matrix_dataframe 0.32039982441271264
+
+number of different values in matrix_dataframe is  1087 
+
+list of 10 most common values in matrix_dataframe is: 
+1: the value 0.0 appeared 49638925 times (constitutes 72.01603% of the matrix values)
+2: the value 0.6931471805599453 appeared 9701765 times (constitutes 14.07530% of the matrix values)
+3: the value 1.0986122886681096 appeared 3828178 times (constitutes 5.55391% of the matrix values)
+4: the value 1.3862943611198906 appeared 1865714 times (constitutes 2.70677% of the matrix values)
+5: the value 1.6094379124341003 appeared 1038719 times (constitutes 1.50697% of the matrix values)
+6: the value 1.791759469228055 appeared 636707 times (constitutes 0.92373% of the matrix values)
+7: the value 1.9459101490553132 appeared 420712 times (constitutes 0.61037% of the matrix values)
+8: the value 2.0794415416798357 appeared 294745 times (constitutes 0.42762% of the matrix values)
+9: the value 2.1972245773362196 appeared 215889 times (constitutes 0.31321% of the matrix values)
+10: the value 2.302585092994046 appeared 164262 times (constitutes 0.23831% of the matrix values)
+
+****
+
+
+print data regarding the reduced dataframe:
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 18077 entries, 0 to 18076
+Columns: 4015 entries, 0 to 4014
+dtypes: Sparse[float64, 0.0](4015)
+memory usage: 229.7 MB
+None
+       0     1     2     3         4     ...  4010  4011  4012  4013  4014
+0  0.000000   0.0   0.0   0.0  0.000000  ...   0.0   0.0   0.0   0.0   0.0
+1  0.000000   0.0   0.0   0.0  0.693147  ...   0.0   0.0   0.0   0.0   0.0
+2  0.000000   0.0   0.0   0.0  0.000000  ...   0.0   0.0   0.0   0.0   0.0
+3  0.000000   0.0   0.0   0.0  0.000000  ...   0.0   0.0   0.0   0.0   0.0
+4  0.693147   0.0   0.0   0.0  0.693147  ...   0.0   0.0   0.0   0.0   0.0
+
+[5 rows x 4015 columns]
+
+min value in matrix_dataframe 0.0 max value in matrix_dataframe 8.852807917623322
+
+median value in matrix_dataframe 0.0 mean value in matrix_dataframe 0.315108124458449
+
+number of different values in matrix_dataframe is  1172 
+
+list of 10 most common values in matrix_dataframe is: 
+1: the value 0.0 appeared 52511911 times (constitutes 72.35123% of the matrix values)
+2: the value 0.6931471805599453 appeared 10229677 times (constitutes 14.09451% of the matrix values)
+3: the value 1.0986122886681096 appeared 3962322 times (constitutes 5.45931% of the matrix values)
+4: the value 1.3862943611198906 appeared 1903778 times (constitutes 2.62304% of the matrix values)
+5: the value 1.6094379124341003 appeared 1049475 times (constitutes 1.44597% of the matrix values)
+6: the value 1.791759469228055 appeared 641942 times (constitutes 0.88447% of the matrix values)
+7: the value 1.9459101490553132 appeared 424204 times (constitutes 0.58447% of the matrix values)
+8: the value 2.0794415416798357 appeared 297671 times (constitutes 0.41013% of the matrix values)
+9: the value 2.1972245773362196 appeared 217997 times (constitutes 0.30036% of the matrix values)
+10: the value 2.302585092994046 appeared 167120 times (constitutes 0.23026% of the matrix values)
+The chosen gene is CRISP3 and its variance is 1.3530372139065492
+
+----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+
+----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+
+----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----
+calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...
+--delete-- variance_df        variance
+0      0.015138
+1      0.033385
+2      0.020195
+3      0.010862
+4      0.073508
+...         ...
+18072  0.004494
+18073  0.124870
+18074  0.013429
+18075  0.002448
+18076  0.002323
+
+[18077 rows x 1 columns]
+--delete-- nlargest_variance_df        variance
+8228   1.384259
+6010   1.353037
+3804   1.328052
+10999  1.309196
+7598   1.237330
+5169   1.215041
+2876   1.177371
+9761   1.167686
+6526   1.163414
+11232  1.158179
+--delete-- list_of_nlargest_indices [8228, 6010, 3804, 10999, 7598, 5169, 2876, 9761, 6526, 11232]
+the K genes with the highest variance are:
+      gene_names  variance
+15326      COX6C  1.384259
+10975     CRISP3  1.353037
+6665        CPB1  1.328052
+20428        MGP  1.309196
+13994     TCEAL4  1.237330
+9549      CXCL14  1.215041
+5098      IGFBP5  1.177371
+18155      CCND1  1.167686
+11978       AGR2  1.163414
+20840       KRT8  1.158179
+
+----- finished __init__ phase of  STDL_Dataset_LatentTensor -----
+
+--delete-- t******************************************
+--delete-- temp prints: rows_to_keep_from_reduced_df
+[8228, 6010, 3804, 10999, 7598, 5169, 2876, 9761, 6526, 11232]
+--delete-- temp prints: rows_from_original_df
+[[15326], [10975], [6665], [20428], [13994], [9549], [5098], [18155], [11978], [20840]]
+--delete-- temp prints: temp_matrix_df_test
+           0         1         2     ...      4012      4013      4014
+8228   5.393628  4.143135  6.854355  ...  4.859812  5.252273  5.634790
+6010   0.000000  1.098612  0.693147  ...  0.000000  0.693147  0.000000
+3804   2.079442  2.397895  1.945910  ...  2.484907  0.693147  1.791759
+10999  4.204693  2.995732  3.828641  ...  2.302585  2.708050  4.007333
+7598   2.397895  1.791759  2.995732  ...  1.791759  3.784190  2.397895
+5169   1.609438  1.386294  1.609438  ...  1.386294  3.784190  1.609438
+2876   3.465736  3.465736  4.007333  ...  3.496508  4.836282  4.110874
+9761   2.302585  2.397895  2.890372  ...  2.079442  4.043051  2.708050
+6526   2.079442  1.386294  2.302585  ...  1.098612  3.258097  1.945910
+11232  4.543295  3.583519  4.672829  ...  3.784190  5.123964  4.382027
+
+[10 rows x 4015 columns]
+--delete-- temp prints: custom_DS_KGenesWithHighestVariance_augmented.mapping
+   original_index_from_matrix_dataframe
+0                                  8228
+1                                  6010
+2                                  3804
+3                                 10999
+4                                  7598
+5                                  5169
+6                                  2876
+7                                  9761
+8                                  6526
+9                                 11232
+--delete-- temp prints: column_mapping_train
+      original_index_from_matrix_dataframe
+0                                        1
+1                                        3
+2                                        4
+3                                        6
+4                                        7
+...                                    ...
+3808                                  4986
+3809                                  4987
+3810                                  4988
+3811                                  4989
+3812                                  4991
+
+[3813 rows x 1 columns]
+--delete-- temp prints: features_dataframe_train
+           feature_ids   gene_names    feature_types
+0      ENSG00000243485  MIR1302-2HG  Gene Expression
+1      ENSG00000237613      FAM138A  Gene Expression
+2      ENSG00000186092        OR4F5  Gene Expression
+3      ENSG00000238009   AL627309.1  Gene Expression
+4      ENSG00000239945   AL627309.3  Gene Expression
+...                ...          ...              ...
+33533  ENSG00000277856   AC233755.2  Gene Expression
+33534  ENSG00000275063   AC233755.1  Gene Expression
+33535  ENSG00000271254   AC240274.1  Gene Expression
+33536  ENSG00000277475   AC213203.1  Gene Expression
+33537  ENSG00000268674      FAM231C  Gene Expression
+
+[33538 rows x 3 columns]
+--delete-- temp prints: features_dataframe_test
+           feature_ids   gene_names    feature_types
+0      ENSG00000243485  MIR1302-2HG  Gene Expression
+1      ENSG00000237613      FAM138A  Gene Expression
+2      ENSG00000186092        OR4F5  Gene Expression
+3      ENSG00000238009   AL627309.1  Gene Expression
+4      ENSG00000239945   AL627309.3  Gene Expression
+...                ...          ...              ...
+33533  ENSG00000277856   AC233755.2  Gene Expression
+33534  ENSG00000275063   AC233755.1  Gene Expression
+33535  ENSG00000271254   AC240274.1  Gene Expression
+33536  ENSG00000277475   AC213203.1  Gene Expression
+33537  ENSG00000268674      FAM231C  Gene Expression
+
+[33538 rows x 3 columns]
+--delete-- temp prints: row_mapping
+       original_index_from_matrix_dataframe
+0                                         3
+1                                        12
+2                                        14
+3                                        15
+4                                        19
+...                                     ...
+18072                                 33525
+18073                                 33527
+18074                                 33528
+18075                                 33530
+18076                                 33535
+
+[18077 rows x 1 columns]
+
+----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----
+calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...
+--delete-- variance_df        variance
+8228   0.938068
+6010   1.301761
+3804   1.259807
+10999  1.096459
+7598   0.985546
+5169   1.217983
+2876   0.822312
+9761   0.891118
+6526   0.955655
+11232  0.868034
+--delete-- nlargest_variance_df        variance
+6010   1.301761
+3804   1.259807
+5169   1.217983
+10999  1.096459
+7598   0.985546
+6526   0.955655
+8228   0.938068
+9761   0.891118
+11232  0.868034
+2876   0.822312
+--delete-- list_of_nlargest_indices [6010, 3804, 5169, 10999, 7598, 6526, 8228, 9761, 11232, 2876]
+Traceback (most recent call last):
+  File "main.py", line 453, in <module>
+    main()
+  File "main.py", line 238, in main
+    num_of_dims_k=k)
+  File "/home/roy.rubin/STDLproject/loadAndPreProcess.py", line 528, in __init__
+    reduced_df = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
+  File "/home/roy.rubin/miniconda3/envs/STDL/lib/python3.7/site-packages/pandas/core/indexing.py", line 1762, in __getitem__
+    return self._getitem_tuple(key)
+  File "/home/roy.rubin/miniconda3/envs/STDL/lib/python3.7/site-packages/pandas/core/indexing.py", line 2067, in _getitem_tuple
+    self._has_valid_tuple(tup)
+  File "/home/roy.rubin/miniconda3/envs/STDL/lib/python3.7/site-packages/pandas/core/indexing.py", line 703, in _has_valid_tuple
+    self._validate_key(k, i)
+  File "/home/roy.rubin/miniconda3/envs/STDL/lib/python3.7/site-packages/pandas/core/indexing.py", line 2009, in _validate_key
+    raise IndexError("positional indexers are out-of-bounds")
+IndexError: positional indexers are out-of-bounds
+*** SLURM BATCH JOB 'STDL_roy' DONE ***

@@ -1,0 +1,204 @@
+*** SLURM BATCH JOB 'STDL_roy' STARTING ***
+*** Activating environment STDL ***
+*** finished Activating the environment ***
+Got to main file. beginning !
+cuda debugging allowed
+cuda device count: 1
+Using device: cuda
+device name: GeForce RTX 2080
+torch.cuda.device(0): <torch.cuda.device object at 0x7f049dd305d0>
+Memory Usage:
+Allocated: 0.0 GB
+Cached:    0.0 GB
+
+----- entered function load_dataset_from_pictures_folder -----
+
+----- finished function load_dataset_from_pictures_folder -----
+
+
+----- entered function load_dataset_from_pictures_folder -----
+
+----- finished function load_dataset_from_pictures_folder -----
+
+
+----- entered function load_dataset_from_pictures_folder -----
+
+----- finished function load_dataset_from_pictures_folder -----
+
+
+----- entered function load_dataframes_from_mtx_and_tsv -----
+started reading features.tsv
+V  finished reading features.tsv
+started reading barcodes.tsv
+V  finished reading barcodes.tsv
+started reading matrix.mtx. this might take some time ...
+V  finished reading matrix.mtx
+adjusting matrix_dataframe
+V  finished working on matrix_dataframe
+
+----- finished function load_dataframes_from_mtx_and_tsv -----
+
+
+----- entered function load_dataframes_from_mtx_and_tsv -----
+started reading features.tsv
+V  finished reading features.tsv
+started reading barcodes.tsv
+V  finished reading barcodes.tsv
+started reading matrix.mtx. this might take some time ...
+V  finished reading matrix.mtx
+adjusting matrix_dataframe
+V  finished working on matrix_dataframe
+
+----- finished function load_dataframes_from_mtx_and_tsv -----
+
+cutting samples that dont have mathching images in the image folder from the dataframe ...
+V   done :)
+
+cutting samples that dont have mathching images in the image folder from the dataframe ...
+V   done :)
+
+checking for genes (rows) that contain less than B counts in both dataframes ...
+discarding relevant rows ...
+performing log1P transformation of the dataframe ...
+
+performing log1P transformation of the dataframe ...
+
+
+print data regarding the reduced dataframe:
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 18077 entries, 0 to 18076
+Columns: 3813 entries, 0 to 3812
+dtypes: Sparse[float64, 0.0](3813)
+memory usage: 220.7 MB
+None
+   0         1     2     3     4     ...  3808  3809  3810  3811  3812
+0   0.0  0.000000   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+1   0.0  1.098612   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+2   0.0  0.000000   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+3   0.0  0.000000   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+4   0.0  0.693147   0.0   0.0   0.0  ...   0.0   0.0   0.0   0.0   0.0
+
+[5 rows x 3813 columns]
+
+min value in matrix_dataframe 0.0 max value in matrix_dataframe 8.62748154531036
+
+median value in matrix_dataframe 0.0 mean value in matrix_dataframe 0.32039982441271264
+
+number of different values in matrix_dataframe is  1087 
+
+list of 10 most common values in matrix_dataframe is: 
+1: the value 0.0 appeared 49638925 times (constitutes 72.01603% of the matrix values)
+2: the value 0.6931471805599453 appeared 9701765 times (constitutes 14.07530% of the matrix values)
+3: the value 1.0986122886681096 appeared 3828178 times (constitutes 5.55391% of the matrix values)
+4: the value 1.3862943611198906 appeared 1865714 times (constitutes 2.70677% of the matrix values)
+5: the value 1.6094379124341003 appeared 1038719 times (constitutes 1.50697% of the matrix values)
+6: the value 1.791759469228055 appeared 636707 times (constitutes 0.92373% of the matrix values)
+7: the value 1.9459101490553132 appeared 420712 times (constitutes 0.61037% of the matrix values)
+8: the value 2.0794415416798357 appeared 294745 times (constitutes 0.42762% of the matrix values)
+9: the value 2.1972245773362196 appeared 215889 times (constitutes 0.31321% of the matrix values)
+10: the value 2.302585092994046 appeared 164262 times (constitutes 0.23831% of the matrix values)
+
+****
+
+
+print data regarding the reduced dataframe:
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 18077 entries, 0 to 18076
+Columns: 4015 entries, 0 to 4014
+dtypes: Sparse[float64, 0.0](4015)
+memory usage: 229.7 MB
+None
+       0     1     2     3         4     ...  4010  4011  4012  4013  4014
+0  0.000000   0.0   0.0   0.0  0.000000  ...   0.0   0.0   0.0   0.0   0.0
+1  0.000000   0.0   0.0   0.0  0.693147  ...   0.0   0.0   0.0   0.0   0.0
+2  0.000000   0.0   0.0   0.0  0.000000  ...   0.0   0.0   0.0   0.0   0.0
+3  0.000000   0.0   0.0   0.0  0.000000  ...   0.0   0.0   0.0   0.0   0.0
+4  0.693147   0.0   0.0   0.0  0.693147  ...   0.0   0.0   0.0   0.0   0.0
+
+[5 rows x 4015 columns]
+
+min value in matrix_dataframe 0.0 max value in matrix_dataframe 8.852807917623322
+
+median value in matrix_dataframe 0.0 mean value in matrix_dataframe 0.315108124458449
+
+number of different values in matrix_dataframe is  1172 
+
+list of 10 most common values in matrix_dataframe is: 
+1: the value 0.0 appeared 52511911 times (constitutes 72.35123% of the matrix values)
+2: the value 0.6931471805599453 appeared 10229677 times (constitutes 14.09451% of the matrix values)
+3: the value 1.0986122886681096 appeared 3962322 times (constitutes 5.45931% of the matrix values)
+4: the value 1.3862943611198906 appeared 1903778 times (constitutes 2.62304% of the matrix values)
+5: the value 1.6094379124341003 appeared 1049475 times (constitutes 1.44597% of the matrix values)
+6: the value 1.791759469228055 appeared 641942 times (constitutes 0.88447% of the matrix values)
+7: the value 1.9459101490553132 appeared 424204 times (constitutes 0.58447% of the matrix values)
+8: the value 2.0794415416798357 appeared 297671 times (constitutes 0.41013% of the matrix values)
+9: the value 2.1972245773362196 appeared 217997 times (constitutes 0.30036% of the matrix values)
+10: the value 2.302585092994046 appeared 167120 times (constitutes 0.23026% of the matrix values)
+The chosen gene is CRISP3 and its variance is 1.3530372139065492
+
+----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+
+----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----
+
+
+----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----
+calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...
+--delete-- variance_df        variance
+0      0.015138
+1      0.033385
+2      0.020195
+3      0.010862
+4      0.073508
+...         ...
+18072  0.004494
+18073  0.124870
+18074  0.013429
+18075  0.002448
+18076  0.002323
+
+[18077 rows x 1 columns]
+--delete-- nlargest_variance_df        variance
+8228   1.384259
+6010   1.353037
+3804   1.328052
+10999  1.309196
+7598   1.237330
+5169   1.215041
+2876   1.177371
+9761   1.167686
+6526   1.163414
+11232  1.158179
+--delete-- list_of_nlargest_indices [8228, 6010, 3804, 10999, 7598, 5169, 2876, 9761, 6526, 11232]
+the K genes with the highest variance are:
+      gene_names  variance
+15326      COX6C  1.384259
+10975     CRISP3  1.353037
+6665        CPB1  1.328052
+20428        MGP  1.309196
+13994     TCEAL4  1.237330
+9549      CXCL14  1.215041
+5098      IGFBP5  1.177371
+18155      CCND1  1.167686
+11978       AGR2  1.163414
+20840       KRT8  1.158179
+
+----- finished __init__ phase of  STDL_Dataset_LatentTensor -----
+
+--delete-- t******************************************
+
+----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----
+the K genes with the highest variance are:
+Traceback (most recent call last):
+  File "main.py", line 454, in <module>
+    main()
+  File "main.py", line 239, in main
+    k_row_indices=rows_to_keep_from_reduced_df)
+  File "/home/roy.rubin/STDLproject/loadAndPreProcess.py", line 564, in __init__
+    temp_df['variance'] = nlargest_variance_df['variance'].values.tolist() # add a column with the variance values
+UnboundLocalError: local variable 'nlargest_variance_df' referenced before assignment
+*** SLURM BATCH JOB 'STDL_roy' DONE ***

@@ -155,9 +155,12 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
                                             model_name=model_name, dataset_name=dataset_name, device=device)
     
     '''
-    Test the model and print comparisons
+    Test the model by its type on the train and test datasets, and print comparisons
+
+    NOTE: in the K genes experiments the matrices are of             shape (num of samples, k)
+            BUT in NMF and AE the matrices are TRANSPOSED and are of shape (num of genes, num of samples)
     '''
-    # first - get the index of the chosen
+    
 
     if dataset_name.startswith("single_gene"):
         ## perform on TRAIN data
@@ -188,7 +191,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         train_gene_index = ds_train.mapping.index[ds_train.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Train_matrix_df']].item() 
         test_gene_index = ds_test.mapping.index[ds_test.mapping['original_index_from_matrix_dataframe'] == hyperparams['geneRowIndexIn_Reduced_Test_matrix_df']].item()
 
-        ## perform on TRAIN data
+        ### perform on TRAIN data ###
         print("\n## perform on TRAIN data ##")
         M_truth, M_pred = getKDimPrediction(dataset=ds_train, model=trained_model, device=device) 
         print("matrix comparsions on all K genes ...")
@@ -204,7 +207,7 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
         plot_SingleGene_PredAndTrue_ColorVisualisation(ds_train, M_pred_single_gene, M_truth_single_gene, model_name, dataset_name + ' Train', hyperparams['gene_name'])
         plot_heatmaps(M_pred, M_truth, train_or_test='Train')
 
-        # perform on TEST data
+        ### perform on TEST data ###
         print("\n## perform on TEST data ##")
         M_truth_test, M_pred_test = getKDimPrediction(dataset=ds_test, model=trained_model, device=device) 
         print("matrix comparsions on all K genes ...")
@@ -653,7 +656,7 @@ def getFullDimsPrediction_with_NMF_DS(dataset, W, model, device):
     assert M_pred.shape == M_truth.shape
 
 
-    print("\n----- finished function getKDimPrediction -----")
+    print("\n----- finished function getFullDimsPrediction_with_NMF_DS -----")
 
     #
     return M_truth, M_pred

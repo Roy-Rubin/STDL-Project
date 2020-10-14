@@ -280,9 +280,12 @@ def cut_genes_with_under_B_counts_from_train_and_test(train_df, test_df, Base_va
             2. indices of all rows that were kept (for testing purpose later on)
 
     assumption: genes (features) are the rows of the df, samples are the columns
+
+    TODO: VERIFY: assumption: all genes are in the same order in both dataframes !!!! (check in features_df_train & features_df_test)
+
     '''
     print(f'checking for genes (rows) that contain less than B counts in both dataframes ...')
-    # trick from stack overflow to keep all rows that have at least one nonzero value
+    # trick from stack overflow to keep all rows that in them the sum of th values is bigger than the base value given
     temp_df_train = train_df[train_df.sum(axis=1) > Base_value]
     temp_df_test = test_df[test_df.sum(axis=1) > Base_value]
     # get lists of indices
@@ -477,7 +480,13 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, k-dim tensor)  ** the tensor is from k-dim latent space
     '''
 
-    def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_dataframe, column_mapping, row_mapping, num_of_dims_k):
+    def __init__(self, imageFolder, matrix_dataframe, features_dataframe, barcodes_dataframe, column_mapping, row_mapping, num_of_dims_k, k_row_indices=None):
+        '''
+        NOTE: `k_row_indices=None` added on 141020. its purpose is to create a TESTING reduced dataset that has the same rows in the same order 
+                                                     as in the TRAIN reduced dataset after the K genes with highest variance were chosen from it.
+                                                     if `None` is passed it means this is the training DS.
+                                                     if a list is passed, it means this is the testing DS.
+        '''
         print("\n----- entering __init__ phase of  STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance -----")
 
         # Save important information from outside
@@ -492,7 +501,6 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
         self.num_of_features_matrix_df = len(matrix_dataframe.index) 
         self.num_of_samples_matrix_df = len(matrix_dataframe.columns)
         self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  
-        # 290920 save for later use
         if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
             self.num_of_images_with_no_augmentation = self.size_of_dataset
         else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
@@ -500,33 +508,65 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
 
         '''
         create a reduced dataframe == a dataframe with only K chosen features 
-        '''
-        print("calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...")
-        variance_df = matrix_dataframe.var(axis=1)  # get the variance of all the genes [varience of each gene over all samples] 
-        # (this practically 'flattens' the df to one column of 33538 entries - one entry for each gene over all the samples)
-        variance_df = pd.DataFrame(data=variance_df, columns=['variance']) # convert it from a pandas series to a pandas df
+        '''        
+        # TODO: addition  141020
+        if k_row_indices is None:  # meaning we are currently creating the TRAIN DS
 
-        # df.nlargest - This method is equivalent to df.sort_values(columns, ascending=False).head(n), but more performant.
-        nlargest_variance_df = variance_df.nlargest(n=num_of_dims_k, columns=['variance'], keep='all')
-        # now use the indexes recieved above to retrieve the entries with the highest variance
-        list_of_nlargest_indices = list(nlargest_variance_df.index.values) 
-        # save it for future reference
-        self.list_of_nlargest_indices = list_of_nlargest_indices
-        # #save  
-        reduced_df = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
-        reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
-        reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
-        self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
-        reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
-        self.reduced_dataframe = reduced_df
+            print("calculate variance of all columns from  matrix_dataframe - and choosing K genes with higest variance ...")
+            variance_df = matrix_dataframe.var(axis=1)  # get the variance of all the genes [varience of each gene over all samples] 
+            # (this practically 'flattens' the df to one column of 33538 entries - one entry for each gene over all the samples)
+            variance_df = pd.DataFrame(data=variance_df, columns=['variance']) # convert it from a pandas series to a pandas df
 
-        # print information if wanted
-        print("the K genes with the highest variance are:")
-        unflattened_list = row_mapping.iloc[list_of_nlargest_indices].values.tolist()
-        flattened_list_of_nlargest_indices_in_orig_df = [elem[0] for elem in unflattened_list]  # [val for sublist in unflattened_list for val in sublist]
-        temp_df = pd.DataFrame(data=features_dataframe['gene_names'].iloc[flattened_list_of_nlargest_indices_in_orig_df] , columns=['gene_names'])  # .iloc returns values by order. and list_of_nlargest_indices is ordered desecndingly
-        temp_df['variance'] = nlargest_variance_df['variance'].values.tolist() # add a column with the variance values
-        print(temp_df)
+            print(f'--delete-- variance_df {variance_df}')
+
+            # df.nlargest - This method is equivalent to df.sort_values(columns, ascending=False).head(n), but more performant.
+            nlargest_variance_df = variance_df.nlargest(n=num_of_dims_k, columns=['variance'], keep='all')
+
+            print(f'--delete-- nlargest_variance_df {nlargest_variance_df}')
+
+            # now use the indexes recieved above to retrieve the entries with the highest variance
+            list_of_nlargest_indices = list(nlargest_variance_df.index.values) 
+            # save it for future reference
+            self.list_of_nlargest_indices = list_of_nlargest_indices
+
+            print(f'--delete-- list_of_nlargest_indices {list_of_nlargest_indices}')
+
+            # #save  
+            reduced_df = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
+            reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
+            reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
+            self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
+            reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
+            self.reduced_dataframe = reduced_df
+
+            # # print information if wanted
+            # print("the K genes with the highest variance are:")
+            # unflattened_list = row_mapping.iloc[list_of_nlargest_indices].values.tolist()
+            # flattened_list_of_nlargest_indices_in_orig_df = [elem[0] for elem in unflattened_list]  # [val for sublist in unflattened_list for val in sublist]
+            # temp_df = pd.DataFrame(data=features_dataframe['gene_names'].iloc[flattened_list_of_nlargest_indices_in_orig_df] , columns=['gene_names'])  # .iloc returns values by order. and list_of_nlargest_indices is ordered desecndingly
+            # temp_df['variance'] = nlargest_variance_df['variance'].values.tolist() # add a column with the variance values
+            # print(temp_df)
+
+        else:    # meaning we are currently creating the TEST DS
+            # #save  
+            reduced_df = matrix_dataframe.iloc[k_row_indices, :]  # get k rows (genes) with highest variance over all of the columns  
+            reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
+            reduced_df = reduced_df.rename(columns={"index": "original_index_from_matrix_dataframe"})
+            self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
+            reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
+            self.reduced_dataframe = reduced_df
+
+            # # print information if wanted
+            # print("the K genes with the highest variance are:")
+            # unflattened_list = row_mapping.iloc[k_row_indices].values.tolist()
+            # flattened_list_of_nlargest_indices_in_orig_df = [elem[0] for elem in unflattened_list]  # [val for sublist in unflattened_list for val in sublist]
+            # temp_df = pd.DataFrame(data=features_dataframe['gene_names'].iloc[flattened_list_of_nlargest_indices_in_orig_df] , columns=['gene_names'])  # .iloc returns values by order. and list_of_nlargest_indices is ordered desecndingly
+            # temp_df['variance'] = nlargest_variance_df['variance'].values.tolist() # add a column with the variance values
+            # print(temp_df)
+
+
+
+
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
 

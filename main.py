@@ -173,6 +173,7 @@ def main():
                                                                 column_mapping=column_mapping_train,
                                                                 row_mapping=row_mapping,
                                                                 chosen_gene_name=gene_name)
+
     custom_DS_SingleValuePerImg_test = loadAndPreProcess.STDL_Dataset_SingleValuePerImg(imageFolder=imageFolder_test, 
                                                                 matrix_dataframe=matrix_dataframe_test, 
                                                                 features_dataframe=features_dataframe_test, 
@@ -195,67 +196,101 @@ def main():
                                                                             column_mapping=column_mapping_train,
                                                                             row_mapping=row_mapping,
                                                                             num_of_dims_k=k)
+
+
+    
+    #### NOTE: the test datasets MUST have the same genes chosen in the train dataset - even if they are not the top K genes with the highest variance (this is for later comparison purposes)
+    ####        for that reason, the test DS `custom_DS_KGenesWithHighestVariance_test` will actually recieve as input a `matrix_dataframe_test` that only has K genes - the same K chosen in the train DS.
+    ####        that way, both train and test datasets will have the same genes.
+
+    print(f'--delete-- t******************************************')  
+
+
+    rows_to_keep_from_reduced_df = custom_DS_KGenesWithHighestVariance_augmented.mapping['original_index_from_matrix_dataframe'].values.tolist() # VVVV !
+
+    # print(f'--delete-- temp prints: rows_to_keep_from_reduced_df\n{rows_to_keep_from_reduced_df}')  
+
+    # rows_from_original_df = row_mapping.iloc[rows_to_keep_from_reduced_df].values.tolist()
+
+    # print(f'--delete-- temp prints: rows_from_original_df\n{rows_from_original_df}')  
+
+    # temp_matrix_df_test = matrix_dataframe_test.iloc[rows_to_keep_from_reduced_df, :]  
+
+    # print(f'--delete-- temp prints: temp_matrix_df_test\n{temp_matrix_df_test}')  
+
+    # print(f'--delete-- temp prints: custom_DS_KGenesWithHighestVariance_augmented.mapping\n{custom_DS_KGenesWithHighestVariance_augmented.mapping}')   
+
+    # print(f'--delete-- temp prints: column_mapping_train\n{column_mapping_train}')   
+
+    # print(f'--delete-- temp prints: features_dataframe_train\n{features_dataframe_train}')   
+
+    # print(f'--delete-- temp prints: features_dataframe_test\n{features_dataframe_test}')   
+
+    # print(f'--delete-- temp prints: row_mapping\n{row_mapping}')   
+
+
     custom_DS_KGenesWithHighestVariance_test = loadAndPreProcess.STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(imageFolder=imageFolder_test, 
-                                                                            matrix_dataframe=matrix_dataframe_test, 
+                                                                            matrix_dataframe=matrix_dataframe_test,  # NOTE this change from `matrix_dataframe_test` !
                                                                             features_dataframe=features_dataframe_test, 
                                                                             barcodes_dataframe=barcodes_dataframe_test, 
                                                                             column_mapping=column_mapping_test,
                                                                             row_mapping=row_mapping,                                                                                                                  
-                                                                            num_of_dims_k=k)
-
-    # <div class="alert alert-block alert-info">
-    # <b>Note:</b> inside the init phase of `STDL_Dataset_KValuesPerImg_LatentTensor_NMF` class, an NMF decompositionis performed on the matrix_dataframe object
-    # </div>
-
-    k = 10
-
-    custom_DS_LatentTensor_NMF_augmented = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_NMF(imageFolder=augmentedImageFolder_train, 
-                                                                            matrix_dataframe=matrix_dataframe_train, 
-                                                                            features_dataframe=features_dataframe_train, 
-                                                                            barcodes_dataframe=barcodes_dataframe_train, 
-                                                                            column_mapping=column_mapping_train,
-                                                                            num_of_dims_k=k)
-    custom_DS_LatentTensor_NMF_test = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_NMF(imageFolder=imageFolder_test, 
-                                                                            matrix_dataframe=matrix_dataframe_test, 
-                                                                            features_dataframe=features_dataframe_test, 
-                                                                            barcodes_dataframe=barcodes_dataframe_test, 
-                                                                            column_mapping=column_mapping_test,
-                                                                            num_of_dims_k=k)
-
-    # <div class="alert alert-block alert-info">
-    # <b>Note:</b> 
-    # <ul>
-    #   <li>first we create a dataset from `matrix_dataframe_train` to feed our AEnet.</li>
-    #   <li>Then we create our AEnet and train it.</li>
-    #   <li>Finally, we create our `custom_DS_LatentTensor_AE` class, in which the Autoencoder network will be saved.</li>
-    # </ul>
-    # </div>
-
-    # TODO: uncomment later when AE tests are wanted
-    dataset_from_matrix_df = loadAndPreProcess.STDL_Dataset_matrix_df_for_AE_init(matrix_dataframe_train)
-
-
-    from executionModule import get_Trained_AEnet
-    k = 10
-    AEnet = get_Trained_AEnet(dataset_from_matrix_df=dataset_from_matrix_df, z_dim=k, num_of_epochs=30, device=device) #NOTE num of epochs - was raised to 40 because no convergence on 20
-
-    k = 10
-    custom_DS_LatentTensor_AE_augmented = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(imageFolder=augmentedImageFolder_train, 
-                                                                            matrix_dataframe=matrix_dataframe_train, 
-                                                                            features_dataframe=features_dataframe_train, 
-                                                                            barcodes_dataframe=barcodes_dataframe_train, 
-                                                                            AEnet=AEnet,                                                                                                            
-                                                                            column_mapping=column_mapping_train,
                                                                             num_of_dims_k=k,
-                                                                            device=device)
-    custom_DS_LatentTensor_AE_test = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(imageFolder=imageFolder_test, 
-                                                                            matrix_dataframe=matrix_dataframe_test, 
-                                                                            features_dataframe=features_dataframe_test, 
-                                                                            barcodes_dataframe=barcodes_dataframe_test, 
-                                                                            AEnet=AEnet,                                                                                                       
-                                                                            column_mapping=column_mapping_test,
-                                                                            num_of_dims_k=k,
-                                                                            device=device)
+                                                                            k_row_indices=rows_to_keep_from_reduced_df)
+
+    # # <div class="alert alert-block alert-info">
+    # # <b>Note:</b> inside the init phase of `STDL_Dataset_KValuesPerImg_LatentTensor_NMF` class, an NMF decompositionis performed on the matrix_dataframe object
+    # # </div>
+
+    # k = 10
+
+    # custom_DS_LatentTensor_NMF_augmented = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_NMF(imageFolder=augmentedImageFolder_train, 
+    #                                                                         matrix_dataframe=matrix_dataframe_train, 
+    #                                                                         features_dataframe=features_dataframe_train, 
+    #                                                                         barcodes_dataframe=barcodes_dataframe_train, 
+    #                                                                         column_mapping=column_mapping_train,
+    #                                                                         num_of_dims_k=k)
+    # custom_DS_LatentTensor_NMF_test = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_NMF(imageFolder=imageFolder_test, 
+    #                                                                         matrix_dataframe=matrix_dataframe_test, 
+    #                                                                         features_dataframe=features_dataframe_test, 
+    #                                                                         barcodes_dataframe=barcodes_dataframe_test, 
+    #                                                                         column_mapping=column_mapping_test,
+    #                                                                         num_of_dims_k=k)
+
+    # # <div class="alert alert-block alert-info">
+    # # <b>Note:</b> 
+    # # <ul>
+    # #   <li>first we create a dataset from `matrix_dataframe_train` to feed our AEnet.</li>
+    # #   <li>Then we create our AEnet and train it.</li>
+    # #   <li>Finally, we create our `custom_DS_LatentTensor_AE` class, in which the Autoencoder network will be saved.</li>
+    # # </ul>
+    # # </div>
+
+    # # TODO: uncomment later when AE tests are wanted
+    # dataset_from_matrix_df = loadAndPreProcess.STDL_Dataset_matrix_df_for_AE_init(matrix_dataframe_train)
+
+
+    # from executionModule import get_Trained_AEnet
+    # k = 10
+    # AEnet = get_Trained_AEnet(dataset_from_matrix_df=dataset_from_matrix_df, z_dim=k, num_of_epochs=30, device=device) #NOTE num of epochs - was raised to 40 because no convergence on 20
+
+    # k = 10
+    # custom_DS_LatentTensor_AE_augmented = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(imageFolder=augmentedImageFolder_train, 
+    #                                                                         matrix_dataframe=matrix_dataframe_train, 
+    #                                                                         features_dataframe=features_dataframe_train, 
+    #                                                                         barcodes_dataframe=barcodes_dataframe_train, 
+    #                                                                         AEnet=AEnet,                                                                                                            
+    #                                                                         column_mapping=column_mapping_train,
+    #                                                                         num_of_dims_k=k,
+    #                                                                         device=device)
+    # custom_DS_LatentTensor_AE_test = loadAndPreProcess.STDL_Dataset_KValuesPerImg_LatentTensor_AutoEncoder(imageFolder=imageFolder_test, 
+    #                                                                         matrix_dataframe=matrix_dataframe_test, 
+    #                                                                         features_dataframe=features_dataframe_test, 
+    #                                                                         barcodes_dataframe=barcodes_dataframe_test, 
+    #                                                                         AEnet=AEnet,                                                                                                       
+    #                                                                         column_mapping=column_mapping_test,
+    #                                                                         num_of_dims_k=k,
+    #                                                                         device=device)
 
 
     # ### 1.9: prepare for the next phases in which the experiments are executed
@@ -318,24 +353,24 @@ def main():
 
     # ## Phase 2: Single Gene Prediction
 
-    # TODO: commented because already executed in batch
-    hyperparameters['num_of_epochs'] = 20
+    # # TODO: commented because already executed in batch
+    # hyperparameters['num_of_epochs'] = 20
 
-    executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
-                                ds_test=custom_DS_SingleValuePerImg_test,
-                                hyperparams=hyperparameters, 
-                                device=device, 
-                                model_name='BasicConvNet', 
-                                dataset_name='single_gene')
+    # executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
+    #                             ds_test=custom_DS_SingleValuePerImg_test,
+    #                             hyperparams=hyperparameters, 
+    #                             device=device, 
+    #                             model_name='BasicConvNet', 
+    #                             dataset_name='single_gene')
 
-    hyperparameters['num_of_epochs'] = 40
+    # hyperparameters['num_of_epochs'] = 40
 
-    executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
-                                ds_test=custom_DS_SingleValuePerImg_test,
-                                hyperparams=hyperparameters, 
-                                device=device, 
-                                model_name='DensetNet121', 
-                                dataset_name='single_gene')
+    # executionModule.runExperiment(ds_train=custom_DS_SingleValuePerImg_augmented, 
+    #                             ds_test=custom_DS_SingleValuePerImg_test,
+    #                             hyperparams=hyperparameters, 
+    #                             device=device, 
+    #                             model_name='DensetNet121', 
+    #                             dataset_name='single_gene')
 
 
 
@@ -361,57 +396,57 @@ def main():
                                 dataset_name='k_genes')
 
 
-    # ## Phase 4: All genes prediction - using dimensionality reduction techniques
-    # 
-    # ### 4.1: Prediction using dimensionality reduction technique NMF
+    # # ## Phase 4: All genes prediction - using dimensionality reduction techniques
+    # # 
+    # # ### 4.1: Prediction using dimensionality reduction technique NMF
 
-    hyperparameters['num_of_epochs'] = 20
+    # hyperparameters['num_of_epochs'] = 20
 
-    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
-                               ds_test=custom_DS_LatentTensor_NMF_test,
-                               hyperparams=hyperparameters, 
-                               device=device, 
-                               model_name='BasicConvNet', 
-                               dataset_name='NMF')
-
-
-    hyperparameters['num_of_epochs'] = 40
-
-    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
-                               ds_test=custom_DS_LatentTensor_NMF_test,
-                               hyperparams=hyperparameters, 
-                               device=device, 
-                               model_name='DensetNet121', 
-                               dataset_name='NMF')
+    # executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
+    #                            ds_test=custom_DS_LatentTensor_NMF_test,
+    #                            hyperparams=hyperparameters, 
+    #                            device=device, 
+    #                            model_name='BasicConvNet', 
+    #                            dataset_name='NMF')
 
 
-    # ### 4.2: Prediction using dimensionality reduction technique AE
+    # hyperparameters['num_of_epochs'] = 40
+
+    # executionModule.runExperiment(ds_train=custom_DS_LatentTensor_NMF_augmented, 
+    #                            ds_test=custom_DS_LatentTensor_NMF_test,
+    #                            hyperparams=hyperparameters, 
+    #                            device=device, 
+    #                            model_name='DensetNet121', 
+    #                            dataset_name='NMF')
+
+
+    # # ### 4.2: Prediction using dimensionality reduction technique AE
 
     
-    hyperparameters['num_workers'] = 0     # !!!
+    # hyperparameters['num_workers'] = 0     # !!!
     
-    hyperparameters['num_of_epochs'] = 20
+    # hyperparameters['num_of_epochs'] = 20
 
-    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_AE_augmented, 
-                               ds_test=custom_DS_LatentTensor_AE_test,
-                               hyperparams=hyperparameters, 
-                               device=device, 
-                               model_name='BasicConvNet', 
-                               dataset_name='AE')
+    # executionModule.runExperiment(ds_train=custom_DS_LatentTensor_AE_augmented, 
+    #                            ds_test=custom_DS_LatentTensor_AE_test,
+    #                            hyperparams=hyperparameters, 
+    #                            device=device, 
+    #                            model_name='BasicConvNet', 
+    #                            dataset_name='AE')
 
-    hyperparameters['num_of_epochs'] = 40
+    # hyperparameters['num_of_epochs'] = 40
 
-    executionModule.runExperiment(ds_train=custom_DS_LatentTensor_AE_augmented, 
-                                ds_test=custom_DS_LatentTensor_AE_test,
-                                hyperparams=hyperparameters, 
-                                device=device, 
-                                model_name='DensetNet121', 
-                                dataset_name='AE')
+    # executionModule.runExperiment(ds_train=custom_DS_LatentTensor_AE_augmented, 
+    #                             ds_test=custom_DS_LatentTensor_AE_test,
+    #                             hyperparams=hyperparameters, 
+    #                             device=device, 
+    #                             model_name='DensetNet121', 
+    #                             dataset_name='AE')
 
 
-    # <div class="alert alert-block alert-danger">
-    # <b>Note:</b> below this - everything is a testing block
-    # </div>
+    # # <div class="alert alert-block alert-danger">
+    # # <b>Note:</b> below this - everything is a testing block
+    # # </div>
 
 
 
