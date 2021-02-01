@@ -407,3 +407,146 @@ def plot_SingleGene_PredAndTrue_ColorVisualisation(dataset, M_pred, M_truth, mod
     '''
     pass
     print("\n----- finished function plot_Single_Gene_PredAndTrue -----")
+
+
+def plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(dataset, M_pred, M_truth, model_name, dataset_name, gene_name):
+    
+    print("\n----- entered function plot_SingleGene_PredAndTrue_ColorVisualisation -----")
+    
+    '''
+    Plot data to compare with the large biopsy image
+    '''
+
+    '''
+    First, gather info
+    '''
+    ### create the value column in the dataframe  ###
+    list_of_values_true = []
+    list_of_values_pred = []
+    x_list = []
+    y_list = []
+
+    #
+    # dataset = combined_dataset.list_of_datasets[-1]
+
+    for index in range(dataset.num_of_images_with_no_augmentation):
+        # get file's name
+        if hasattr(dataset.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = dataset.imageFolder.samples[index][0]
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            _, curr_filename = dataset.imageFolder[index]
+
+        # get the sample's name from its absolute path and file name
+        curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
+
+        # get the y value's location
+        index_in_stdata_df = dataset.reduced_dataframe.index.to_list().index(curr_sample_name) #TODO: verify this works
+        
+        # append the gene_exp value (pred or true) for that barcode
+        list_of_values_true.append(M_truth[index_in_stdata_df])
+        list_of_values_pred.append(M_pred[index_in_stdata_df])
+
+        # get the x and y values for that image name
+        x = curr_filename.partition('_')[2].partition('_')[0].partition('x')[2]
+        y = curr_filename.partition('_')[2].partition('_')[2].partition('_')[0].partition('y')[2]
+        
+        # append x and y values. note the conversion - its because they are strings !
+        x_list.append(int(x))
+        y_list.append(int(y))  
+
+    '''
+    Make preparations for the plot
+    '''
+    # decrease sizes for plot reasons
+    x_list = [x - min(x_list) for x in x_list]  # decreasing the size ...
+    y_list = [x - min(y_list) for x in y_list]  # decreasing the size ...
+    #
+    x_boundry = int(max(x_list)) + 1
+    y_boundry = int(max(y_list)) + 1
+    # modulate up (~un-normalize the log1p normalization) because otherwise colors dont work
+    list_of_values_true = [np.expm1(true_val)+1 for true_val in list_of_values_true]
+    list_of_values_pred = [np.expm1(pred_val)+1 for pred_val in list_of_values_pred]
+    
+    # NOTE !!!! the low mid high values - will be built on TRUE VALUES but used also for PRED VALUES !!!!!
+    list_sorted = sorted(list_of_values_true)
+    n = len(list_sorted)
+    low_val = list_sorted[int(2 * n/5)-1]
+    mid_val = list_sorted[int(3 * n/5)-1]
+    high_val = list_sorted[int(4 * n/5)-1]
+    # create the (sparse de-facto but not sparse python-wise) matrices
+    # init them empty. T for truth, P for pred
+    fill_value = 0  
+    low_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    mid_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    high_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    very_high_T = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    low_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    mid_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    high_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+    very_high_P = np.full(shape=[x_boundry,y_boundry], fill_value=fill_value) # values is a 2d matrix - each entry is a color
+
+    # add values to the matrices
+    index = 0
+    for x, y, true_val, pred_val in zip(x_list, y_list, list_of_values_true, list_of_values_pred):
+        index += 1
+        # add to true matrices
+        low_T[x,y] = true_val if true_val <= low_val else fill_value
+        mid_T[x,y] = true_val  if true_val > low_val and true_val <= mid_val else fill_value
+        high_T[x,y] = true_val  if true_val > mid_val and true_val <= high_val else fill_value
+        very_high_T[x,y] = true_val  if true_val > high_val else fill_value
+        # add to pred matrices
+        low_P[x,y] = pred_val if pred_val <= low_val else fill_value
+        mid_P[x,y] = pred_val  if pred_val > low_val and pred_val <= mid_val else fill_value
+        high_P[x,y] = pred_val  if pred_val > mid_val and pred_val <= high_val else fill_value
+        very_high_P[x,y] = pred_val  if pred_val > high_val else fill_value
+
+    '''
+    Plot !
+    '''
+    print("finished preparing the plots, now just need to show on screen ....")
+
+    # plot figure for M_truth !!! only if one does not exist already... to avoid duplications
+    # import os.path
+    # if not os.path.isfile(f'saved_plots_color_visualisation/{filename}.png'): # meaning this file does not exist, and needs to be created
+    plt.figure(figsize=(8,8))
+    plt.spy(low_T, markersize=4, color='lime', label='Low Values')
+    plt.spy(mid_T, markersize=4, color='yellow', label='Medium Values')
+    plt.spy(high_T, markersize=4, color='deepskyblue', label='High Values')  # maybe 'violet' instead ?
+    plt.spy(very_high_T, markersize=4, color='red', label='Very High Values')
+    plt.legend()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_truth values\nChosen Gene: {gene_name}', fontsize=15)
+    filename = f'{dataset_name}_{model_name}_M_truth_visualization_for_gene_{gene_name}'
+    plt.savefig(f'saved_plots_color_visualisation/{filename}.png', bbox_inches='tight')
+    # plt.show()
+    plt.clf()
+    plt.close()
+
+    # plot figure for M_pred !!! This will always need to be created
+    plt.figure(figsize=(8,8))
+    plt.spy(low_P, markersize=4, color='lime', label='Low Values')
+    plt.spy(mid_P, markersize=4, color='yellow', label='Medium Values')
+    plt.spy(high_P, markersize=4, color='deepskyblue', label='High Values')  # maybe 'violet' instead ?
+    plt.spy(very_high_P, markersize=4, color='red', label='Very High Values')
+    plt.legend()
+    plt.xlabel(f'X coordinates')
+    plt.ylabel(f'Y coordinates')
+    plt.title(f'Plot of M_pred values\nPrediction visualisation on the chosen gene: {gene_name}\nModel: {model_name} & Dataset: {dataset_name}', fontsize=15)
+    filename = f'{dataset_name}_{model_name}_M_pred_visualization_for_gene_{gene_name}'
+    plt.savefig(f'saved_plots_color_visualisation/{filename}.png', bbox_inches='tight')
+    # plt.show()
+    plt.clf()
+    plt.close()
+
+    '''
+    final note:
+    options that didnt work here:
+    scatter
+    pcolor
+    pcolormesh
+    imshow
+    '''
+    pass
+    print("\n----- finished function plot_Single_Gene_PredAndTrue -----")
+

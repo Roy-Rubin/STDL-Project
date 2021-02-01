@@ -1,9 +1,12 @@
 import torch
 import itertools as it
 import torch.nn as nn
+import torchvision
 
-
-class ConvNet(nn.Module):
+'''
+Basic Convolutional Neural Network class
+'''
+class BasicConvNet(nn.Module):
     """
     A convolutional classifier model based on PyTorch nn.Modules.
 
@@ -132,3 +135,44 @@ class ConvNet(nn.Module):
         return out
 
 
+
+'''
+This function returns models by a given name.
+
+currently, only 2 model types implemented:
+1. BasicConvNet
+2. DenseNet121
+
+The function allows adjusting model parameters as given in the hyperparams dict by the user.
+'''
+def get_model_by_name_Mandalay(name, dataset, hyperparams):
+    '''
+    prep:
+    '''
+    x0, y0 = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
+    in_size = x0.shape  # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[
+        0]  # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)
+    '''
+    get_model_by_name
+    '''
+    if name == 'BasicConvNet':
+        model = BasicConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'], hidden_dims=hyperparams['hidden_dims'])
+        return model
+    elif name == 'DensetNet121':
+        # create the model from an existing architechture
+        # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+        model = torchvision.models.densenet121(pretrained=False)
+
+        # update the exisiting model's last layer
+        input_size = model.classifier.in_features
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[
+            0]  # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!!
+
+        model.classifier = torch.nn.Linear(input_size, output_size, bias=True)
+        model.classifier.weight.data.zero_()
+        model.classifier.bias.data.zero_()
+        return model
+
+    else:
+        print(f'not implemented yet ....')

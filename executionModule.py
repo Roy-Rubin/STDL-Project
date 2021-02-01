@@ -68,8 +68,12 @@ def train_prediction_model(model_to_train, ds_train, loss_fn, optimizer, hyperpa
             #                                                                                                                         # NOTE: this only works in the notebook - # TODO uncomment this line when working on notebook
             # get current batch data 
             data = next(dl_iter)  # note: "data" variable is a list with 3 elements
-            x, y, _ = data  # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25. 
+            # x, y, _ = data  # TODO: NOTE this is changed in 191120 to the following 2 lines below
+                            # note :  x.shape is: torch.Size([25, 3, 176, 176]) y.shape is: torch.Size([25]) because the batch size is 25.
                             # NOTE that the third argument recieved here is "column" and is not currently needed
+            x = data[0]  # TODO NOTE: changed in 191120 because there is no 3rd argument in the new mandalay version
+            y = data[1]  # TODO NOTE: changed in 191120 because there is no 3rd argument in the new mandalay version
+
             
             # load to device
             if device.type == 'cuda':
@@ -113,9 +117,9 @@ def train_prediction_model(model_to_train, ds_train, loss_fn, optimizer, hyperpa
  
     print(f'finished all epochs !                                         ')  # spaces ARE intended
     print(f'which means, that this model is now trained.')
+    
     print(f'plotting the loss convergence for the training of this model: ')
-
-    plot_loss_convergence(loss_value_averages_of_all_epochs, model_name, dataset_name)
+    plot_loss_convergence(loss_value_averages_of_all_epochs, model_name, dataset_name) #TODO: temporarily commented during 201120 mandalay data experimentation (this function occurs more times than before and each time runs ove existing object)
 
     print(" \ * / FINISHED train_prediction_model \ * / ")
 
@@ -328,6 +332,150 @@ def runExperiment(ds_train : Dataset, ds_test : Dataset, hyperparams, device, mo
     pass
 
 
+def runExperiment_mandalay(ds_train_list : list, ds_test : Dataset, hyperparams, device, model_name, dataset_name):
+    '''
+    **runExperimentWithModel_BasicConvNet**
+    this function performs 2 things:
+    (1) Trains the model on ALL training data - one train ds at a time
+    (2) Tests the model  on patient 2 data (test data)
+    '''
+    print("\n----- entered function runExperiment_mandalay -----")
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    # create the model
+    model = get_model_by_name_Mandalay(name=model_name, dataset=ds_train_list[0], hyperparams=hyperparams)  #TODO: note that <- `dataset=ds_train_list[0]`
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
+
+    '''
+    Train the model
+    '''
+    trained_model = model  # initial assignment
+
+    for index, ds_train in enumerate(ds_train_list):
+        print(f'now training model on the DS (ds_train) indexed {index}')
+        trained_model = train_prediction_model(model_to_train=trained_model, ds_train=ds_train, loss_fn=loss_fn, 
+                                                optimizer=optimizer, hyperparams=hyperparams, 
+                                                model_name=model_name, dataset_name=dataset_name, device=device) 
+        
+    '''
+    Test the model by its type on the train and test datasets, and print comparisons
+
+    NOTE: in the K genes experiments the matrices are of             shape (num of samples, k)
+            BUT in NMF and AE the matrices are TRANSPOSED and are of shape (num of genes, num of samples)
+    '''
+    
+
+    if dataset_name.startswith("single_gene"):
+        # perform on TRAIN data  
+        print("\n## perform on TRAIN data ##")
+        M_truth, M_pred = getSingleDimPrediction(dataset=ds_train_list[-1], model=trained_model, device=device)  # TODO: Note: the last item in ds_train_list is supposed to be "patient1" and thats why `dataset=ds_train_list[-1]`
+        baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
+        compare_matrices(M_truth, M_pred, Baseline=baseline)
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        
+
+        # perform on TEST data
+        print("\n## perform on TEST data ##")
+        M_truth_test, M_pred_test = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device)
+        baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
+        compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)  #NOTE: same baseline as above - the TRAIN baseline
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        
+
+        # print("\n## VERIFICATIONS 091020 ##") #TODO: delete later
+        # save to csv file
+        # savetxt('single_gene_test_pred_from_K_genes_exp.csv', M_pred_test, delimiter=',')
+
+        
+    
+        
+        
+    # delete unneeded tesnors from GPU to save space
+    del trained_model
+    # goodbye
+    print("\n----- finished function runExperiment -----")
+    pass
+
+
+def runExperiment_mandalay_combined_ds(combined_ds_train : Dataset, ds_test : Dataset, hyperparams, device, model_name, dataset_name):
+    '''
+    **runExperimentWithModel_BasicConvNet**
+    this function performs 2 things:
+    (1) Trains the model on ALL training data - one train ds at a time
+    (2) Tests the model  on patient 2 data (test data)
+    '''
+    print("\n----- entered function runExperiment_mandalay -----")
+
+    '''
+    prepare model, loss and optimizer instances
+    '''
+    # create the model
+    model = get_model_by_name_Mandalay(name=model_name, dataset=combined_ds_train.list_of_datasets[-1], hyperparams=hyperparams)  #TODO: note that <- `dataset=ds_train_list[0]`
+    # create the loss function and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
+
+    
+    '''
+    Train the model
+    '''
+    trained_model = model  # initial assignment
+
+    trained_model = train_prediction_model(model_to_train=trained_model, ds_train=combined_ds_train, loss_fn=loss_fn, 
+                                            optimizer=optimizer, hyperparams=hyperparams, 
+                                            model_name=model_name, dataset_name=dataset_name, device=device) 
+        
+    '''
+    Test the model by its type on the train and test datasets, and print comparisons
+
+    NOTE: in the K genes experiments the matrices are of             shape (num of samples, k)
+            BUT in NMF and AE the matrices are TRANSPOSED and are of shape (num of genes, num of samples)
+    '''
+    
+
+    if dataset_name.startswith("single_gene"):
+        # perform on TRAIN data  
+        print("\n## perform on TRAIN data ##")
+        M_truth, M_pred = getSingleDimPrediction(dataset=combined_ds_train.list_of_datasets[-1], model=trained_model, device=device)  # TODO: Note!!!: the last item in ds_train_list is supposed to be "patient1" and thats why `dataset=ds_train_list[-1]`
+        baseline = np.full(shape=M_truth.shape, fill_value=np.average(M_truth))  # `full` creates an array of wanted size where all values are the same fill value
+        compare_matrices(M_truth, M_pred, Baseline=baseline)
+        plot_SingleGene_PredAndTrue_ScatterComparison(combined_ds_train.list_of_datasets[-1], M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])  # the combined DS isnt used, thats why its ok to send it there
+        # plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(combined_ds_train, M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(combined_ds_train.list_of_datasets[-1], M_pred, M_truth, model_name, dataset_name + ' Train', hyperparams['gene_name'])
+        
+
+        # perform on TEST data
+        print("\n## perform on TEST data ##")
+        M_truth_test, M_pred_test = getSingleDimPrediction(dataset=ds_test, model=trained_model, device=device)
+        baseline = np.full(shape=M_truth_test.shape, fill_value=np.average(M_truth))  #NOTE: shape of TEST data, filled with TRAIN data avg !!! # `full` creates an array of wanted size where all values are the same fill value
+        compare_matrices(M_truth_test, M_pred_test, Baseline=baseline)  #NOTE: same baseline as above - the TRAIN baseline
+        plot_SingleGene_PredAndTrue_ScatterComparison(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])  # the combined DS isnt used, thats why its ok to send it there
+        # plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+        plot_SingleGene_PredAndTrue_ColorVisualisation_Mandalay(ds_test, M_pred_test, M_truth_test, model_name, dataset_name + ' Test', hyperparams['gene_name'])
+
+        
+
+        # print("\n## VERIFICATIONS 091020 ##") #TODO: delete later
+        # save to csv file
+        # savetxt('single_gene_test_pred_from_K_genes_exp.csv', M_pred_test, delimiter=',')
+
+        
+    
+        
+        
+    # delete unneeded tesnors from GPU to save space
+    del trained_model
+    # goodbye
+    print("\n----- finished function runExperiment -----")
+    pass
+
+
 def getSingleDimPrediction(dataset, model, device):
     '''
     REMINDER:
@@ -391,7 +539,9 @@ def getSingleDimPrediction(dataset, model, device):
             #print(f'batch {batch_index+1} of {num_of_batches} batches', end='\r') # "end='\r'" will cause the line to be overwritten the next print that comes
             #      \r doesnt work on a text file
             data = next(dl_iter)
-            x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)
+
+            #x, _, _ = data  # x.shape should be (all_images_size, 3, 176, 176)  # TODO: NOTE this is changed in 191120 to the following line below
+            x = data[0]                                                          # TODO NOTE: changed in 191120 because there is no 3rd argument in the new mandalay version
 
             # small correction if this is an augmented dataset and this is the LAST batch ... we dont want the augmented images
             if batch_index == num_of_batches-1 and augmented_flag is True and remainder != -1:
@@ -431,6 +581,7 @@ def getSingleDimPrediction(dataset, model, device):
     M_truth = M_truth.transpose()  #NOTE the transpose here to match the shapes !!!
     M_pred = M_pred.squeeze()
     M_truth = M_truth.squeeze()
+    print(f'M_pred.shape {M_pred.shape} ?==? M_truth.shape {M_truth.shape}')
     assert M_pred.shape == M_truth.shape
 
     ### final print
@@ -905,6 +1056,54 @@ def get_model_by_name(name, dataset, hyperparams):
         input_size = model.fc.in_features
         output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[0] # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!! 
                                                                 
+        model.fc = torch.nn.Linear(input_size, output_size, bias=True)
+        model.fc.weight.data.zero_()
+        model.fc.bias.data.zero_()
+        return model
+
+
+def get_model_by_name_Mandalay(name, dataset, hyperparams):
+    '''
+    prep:
+    '''
+    x0, y0 = dataset[0]  # NOTE that the third argument recieved here is "column" and is not currently needed
+    in_size = x0.shape  # note: if we need for some reason to add batch dimension to the image (from [3,176,176] to [1,3,176,176]) use x0 = x0.unsqueeze(0)  # ".to(device)"
+    output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[
+        0]  # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)
+    '''
+    get_model_by_name
+    '''
+    if name == 'BasicConvNet':
+        model = ConvNet(in_size, output_size, channels=hyperparams['channels'], pool_every=hyperparams['pool_every'],
+                        hidden_dims=hyperparams['hidden_dims'])
+        return model
+    elif name == 'DensetNet121':
+        # create the model from an existing architechture
+        # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+        model = torchvision.models.densenet121(pretrained=False)
+
+        # update the exisiting model's last layer
+        input_size = model.classifier.in_features
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[
+            0]  # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!!
+
+        model.classifier = torch.nn.Linear(input_size, output_size, bias=True)
+        model.classifier.weight.data.zero_()
+        model.classifier.bias.data.zero_()
+        return model
+    elif name == 'Inception_V3':
+        # create the models
+        # explanation of all models in: https://pytorch.org/docs/stable/torchvision/models.html
+        print(
+            f'starting to load the model inception_v3 from torchvision.models. this is quite heavy, and might take some time ...')
+        model = torchvision.models.inception_v3(pretrained=False)
+        print(f'finished loading model')
+
+        # update the existing models last layer
+        input_size = model.fc.in_features
+        output_size = 1 if isinstance(y0, int) or isinstance(y0, float) else y0.shape[
+            0]  # NOTE: if y0 is an int, than the size of the y0 tensor is 1. else, its size is K (K == y0.shape)  !!!
+
         model.fc = torch.nn.Linear(input_size, output_size, bias=True)
         model.fc.weight.data.zero_()
         model.fc.bias.data.zero_()

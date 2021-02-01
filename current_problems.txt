@@ -1,0 +1,5 @@
+
+
+Current:
+
+Image folders that werent copied fully (corrupted files)

@@ -1,0 +1,7 @@
+TODOS:
+
+1. change the prediction value: stop trying to predict the exact value of a gene's expression level given an image (`regression`). 
+    the new prediction value: whether or not the gene is highly expressed or not (`categorical`, binaric).
+    what is highly expressed ? we'll start with the definition: highly expressed will be defined as being over the "80 precentile" value.
+    NOTE: this will change the M_trurth vs M_pred matrix/vector comparison. this will also change the visualization plot of the gene expression levels
+    NOTE: need to check if and which functions need to change ...

@@ -1,8 +1,8 @@
-# STDL-Project
+# STDL-Project (V2)
 
-> Spatial Transcriptomics (ST) Deep Learning Project
+> Spatial Transcriptomics Deep Learning (STDL) Project
 
-> Prediction of gene expression levels through biopsy image analysis combined with ST data
+> Prediction of gene expression levels through biopsy image analysis combined with Spatial Transcriptomics (ST) data
 
 
 ## Table of Contents
@@ -21,28 +21,29 @@
 - Deep learning computer vision algorithms are introduced to analyze the biopsy image.
 - When combined with the gene expression levels matrix, a trained model is produced that learns the connection between a matrix entry and its relevant image.
 - The goal is, to be able to produce a close-as-posibble approximation to real gene expression levels, using the biopsy image alone.
-- Experiments performed:
-    - Given a fraction of a biopsy image - Perform a prediction of a single gene's expression level 
-    - Given a fraction of a biopsy image - Perform a prediction of K chosen genes expression levels
-    - Given a fraction of a biopsy image - Perform a prediction of all of the genes expression levels
-        - Performed with dimensionality reduction technique: `non-negative matrix factorization (NMF)`
-        - Performed with dimensionality reduction technique: `autoencoder deep neural network (AE)`
+- Given a fraction of a biopsy image - Perform a prediction of a single gene's expression level 
+
+> `NOTE`: this is the second version of the project. in this version:
+>> only a single gene is predicted.
+>> a new wrapping class helps organize functionality: `STDLObject`
+>> some file names have changed
+
 
 ## Contents-of-the-repository
 
-> File: `loadAndPreProcess.py`. contains all functions to load data, create custom datasets, and perform pre processing actions
+> File: `STDLclass.py`. contains the new `STDLObject` class that assists in organizing every functionality necessary for training and testing
 
-> File: `executionModule.py`. contains all functions required for training, testing, and performing experiments
+> File: `projectLoadAndPreProcess.py`. contains all functions to load data, create custom datasets, and perform pre processing actions
 
-> File: `deepNetworkArchitechture.py`. contains a few basic deep learning architechtures used in the project. others more complex architectures will be imported from `torchvision`.
+> File: `projectTrainAndPredict.py`. contains all functions required for training, testing, predicting, and performing experiments
+
+> File: `projectModels.py`. contains a few basic deep learning architechtures used in the project. others more complex architectures will be imported from `torchvision`
 
 > File: `projectUtilities.py`. contains assisting functions for information printing and experimentation
 
-> File: `STDL_notebook.ipynb`. contains the script that will run  the entire project's workflow on a jupyter notebook
-
 > File: `environment.yml`. contains the conda instalation instructions for the project
 
-> File: `main.py`. contains the script that will run the entire project's workflow as a python script
+> File: `main.py`. contains a usage example for the STDL class object
 
 
 ## Requirements
@@ -84,7 +85,8 @@
 ## FAQ
 
 - **How can I get the data ?**
-    - Please contact <a href="https://10xgenomics.com/" target="_blank">`10xgenomics`</a>. The data was acquired from their website.
+    - Please contact <a href="https://10xgenomics.com/" target="_blank">`10xgenomics data`</a>. Part of the data was acquired from their website.
+    - Please see <a href="https://data.mendeley.com/datasets/29ntw7sh4r/2" target="_blank">`Mendeley data`</a>. Part of the data was acquired from their website.
 - **This or that doesnt work... what to do?**
     - No problem! Contact me for questions.
 
@@ -104,5 +106,5 @@
 
 ## License
 
-- Data acquired from <a href="https://10xgenomics.com/" target="_blank">`10xgenomics`</a>
+- Data acquired from <a href="https://10xgenomics.com/" target="_blank">`10xgenomics`</a> and <a href="https://data.mendeley.com/datasets/29ntw7sh4r/2" target="_blank">`Mendeley`</a>
 - Project performed @ Technion - Israeli institute of technology

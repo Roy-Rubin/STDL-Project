@@ -87,6 +87,8 @@ def load_dataset_from_images_folder(path_to_images, im_hight_and_width_size):
     tf = torchTransform.Compose([
         # Resize to constant spatial dimensions
         torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+        # Convert image to greyscale
+        torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later
         # PIL.Image -> torch.Tensor
         torchTransform.ToTensor(),
         # Dynamic range [0,1] -> [-1, 1]
@@ -124,6 +126,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
     tf_original =   torchTransform.Compose([
                     # Resize to constant spatial dimensions
                     torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -139,6 +143,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     # Rotate image:
                     # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
                     torchTransform.RandomRotation((90,90)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -154,6 +160,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     # Rotate image:
                     # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
                     torchTransform.RandomRotation((180,180)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -169,6 +177,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     # Rotate image:
                     # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
                     torchTransform.RandomRotation((270,270)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -183,6 +193,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     torchTransform.Resize((im_hight_and_width_size, im_hight_and_width_size)),
                     # flip horizontaly (p=1 == probability for flipping is 1 == always flip)
                     torchTransform.RandomHorizontalFlip(p=1),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -200,6 +212,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     # Rotate image:
                     # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
                     torchTransform.RandomRotation((90,90)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -217,6 +231,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     # Rotate image:
                     # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
                     torchTransform.RandomRotation((180,180)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -234,6 +250,8 @@ def load_augmented_imageFolder_DS_from_images_folder(path_to_images, im_hight_an
                     # Rotate image:
                     # NOTE: degrees (sequence or float or int) – Range of degrees to select from. If degrees is a number instead of sequence like (min, max), the range of degrees will be (-degrees, +degrees).
                     torchTransform.RandomRotation((270,270)),
+                    # Convert image to greyscale
+                    torchTransform.Grayscale(num_output_channels=3), # 3 means: R==G==B. this is important for the model inputs later,
                     # PIL.Image -> torch.Tensor
                     torchTransform.ToTensor(),
                     # Dynamic range [0,1] -> [-1, 1]
@@ -393,6 +411,46 @@ def cut_samples_with_no_matching_image_and_reorder_df(matrix_df, image_folder_of
     return updated_df, column_mapping
 
 
+
+def cut_samples_with_no_matching_image_and_reorder_df_mandalay(stdata_df, image_folder_of_the_df):
+    '''
+    Goal: cut samples (rows) that do not have matching  
+
+    THE PROBLEM IS - samples might be missing from both ends - samples from stdata_df might not be present in the image folder and vice verse.
+
+    '''
+    print(f'cutting samples that dont have mathching images in the image folder from the dataframe ...')
+
+    # verify that this is a regular (and not augmented) image folder
+    if not hasattr(image_folder_of_the_df, 'samples'):  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+        raise NameError(' wrong image folder type... insert the regular, not augmented one ')
+    
+    #
+    list_of_index_tuples = [] # each element in the list will be a tuple containing (index in image folder, column index in the orig df, column index in the new df)    
+
+    # get indices of samples that DO exist in the image folder, add them to `existing_sampexisting_samples_list_in_image_folderles_list`
+    existing_samples_list_in_image_folder = []
+    for index_in_image_folder, element in enumerate(image_folder_of_the_df.samples):
+        filename = element[0]
+        curr_sample_name = filename.partition('_x')[0].partition('/images/')[2].partition('_')[0]  # [0] means verything before the token, [2]  means everything after the token
+        existing_samples_list_in_image_folder.append(curr_sample_name)
+        
+    existing_samples_list_in_stdata_df = stdata_df.index.to_list()
+
+    existing_samples_list_intersection = list(set(existing_samples_list_in_image_folder) & set(existing_samples_list_in_stdata_df))
+
+    existing_samples_list_intersection.sort() # TODO: check if needed - see code line below for reason to sort in the first place
+
+    # save a mapping between the indices, and save the updated dataframe  
+    updated_df = stdata_df.loc[existing_samples_list_intersection,:] # keep only the wanted rows from the dataframe # NOTE !!!!! this line returns a dataframe in which the rows are ORDERED BY THE ORDER OF `column_list` !!!!
+    # print(f'original df info:\n{stdata_df.info()}')  #TODO: delete later
+    # print(f'updated_df info:\n{updated_df.info()}')  #TODO: delete later   
+
+    print(f'V   done :)\n')
+    return updated_df
+
+
+
 class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
     '''
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, gene exp value)
@@ -475,6 +533,95 @@ class STDL_Dataset_SingleValuePerImg(torch.utils.data.Dataset):
         return X, y, column  # note that "column" is here for future reference, and is the column in matrix_dataframe that this y value belongs to
 
 
+class STDL_Dataset_SingleValuePerImg_Mandalay(torch.utils.data.Dataset):
+    '''
+    NOTE: every element of the dataset is a 2d tuple of: (img tensor, gene exp value)
+    NOTE: the above gene exp value is for a specific gene
+    '''
+
+    def __init__(self, imageFolder, stdata_dataframe, chosen_gene_name):
+        print("\n----- entering __init__ phase of  STDL_Dataset_SingleValuePerImg -----")
+
+        # Save important information from outside
+        self.imageFolder = imageFolder
+        self.stdata_dataframe = stdata_dataframe
+        self.gene_name = chosen_gene_name
+        # self.row_mapping, self.column_mapping = row_mapping, column_mapping #TODO: not sure if needed
+
+        # save additional information
+        self.num_of_features_stdata_df = len(stdata_dataframe.columns)        #TODO: verify: does this include the headers or not !?!?
+        self.num_of_samples_stdata_df = len(stdata_dataframe.index)       #TODO: verify: does this include the headers or not !?!?
+        self.size_of_dataset = len(self.imageFolder) # NOTE: size_of_dataset != num_of_samples  when the dataset is AUGMENTED - see if clause below
+        #  
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            self.num_of_images_with_no_augmentation = self.size_of_dataset
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            self.num_of_images_with_no_augmentation = imageFolder.dataset_lengths_list[0] # NOTE: the concatanated dataset has the original list of datasets inside it. first in that list is the original untransformed imageFolder DS
+
+        '''
+        create the reduced dataframe == a dataframe with only one row
+        '''
+        # first get the requested gene's column index + check if requested gene name actually appears in the stdata_dataframe
+        requested_column_index = -1
+        if chosen_gene_name not in stdata_dataframe.columns:
+            raise ValueError('A very specific bad thing happened.')  #TODO: this means that someone who creates this custom dataset needs to do so using TRY CATCH
+        else:
+            requested_column_index = stdata_dataframe.columns.to_list().index(chosen_gene_name)  #Note: please see: https://stackoverflow.com/questions/176918/finding-the-index-of-an-item-in-a-list # assumption - theres only one occurunce of the gene name in the list
+
+        # get the reduced dataframe
+        self.reduced_dataframe = self.stdata_dataframe.iloc[:, requested_column_index]  # get only the relevant gene's COLUMN over ALL samples (== all rows)
+        # self.reduced_dataframe.rename( columns={0 :'values'}, inplace=True ) # since the previous line gave us one column of values with no name, I renamed it
+
+        print("\n----- finished __init__ phase of  STDL_Dataset_SingleValuePerImg -----\n")
+
+    def __len__(self):
+        # 'Denotes the total number of samples'
+        return len(self.imageFolder)
+
+    def __getitem__(self, index):
+        '''
+
+        # 'Generates one sample of data'
+        # Select sample
+
+        Task: attach the y value of a single img
+        '''
+        ## get information about the image depending on the object type
+        if hasattr(self.imageFolder, 'samples'):  # meaning this is a regular "ImageFolder" type
+            curr_filename = self.imageFolder.samples[index][0]
+            curr_img_tensor = self.imageFolder[index][0]  # note that this calls __get_item__ and returns the tensor value
+        else:  # meaning this is a custom DS I built - STDL_ConcatDataset_of_ImageFolders
+            curr_img_tensor, curr_filename = self.imageFolder[index]
+
+        # for me
+        X = curr_img_tensor  # this is actually X_i
+
+        # get the sample's name from its absolute path and file name
+
+        # print(f'\ncurr_filename {curr_filename}')  # TODO: TO DELETE !!!<----
+
+        curr_sample_name = curr_filename.partition('_x')[0].partition('/images/')[2].partition('_')[0]  # [0] means verything before the token, [2]  means everything after the token
+        
+        # print(f'curr_sample_name {curr_sample_name}')  # TODO: TO DELETE !!!<----
+
+        # get the y value's ROW in the gene expression matrix MTX
+
+        # print(f'inside __getitem__ with index {index}, curr_sample_name is {curr_sample_name} curr_filename {curr_filename}')  # TODO: delete later
+        current_gene_expression_value = 0
+        if curr_sample_name not in self.reduced_dataframe.index.tolist():  # Note: remember that the reduced df here is a pandas series object
+            current_gene_expression_value = 0               #TODO: THIS IS "THE DANGEROUS ASSUMPTION" - if the stdata file does not contain information about this image - I assume that its LOG1P normalized value is 0 !!!!!!!!!!!!!
+        else:
+            current_gene_expression_value = self.reduced_dataframe.at[curr_sample_name]
+
+
+
+        # for me
+        y = current_gene_expression_value
+
+        return X, y   #, column  #TODO: comment to the left is 171120 #Note: "column" is here for future reference, and is the column in matrix_dataframe that this y value belongs to
+
+
+
 class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Dataset):
     '''
     NOTE: every element of the dataset is a 2d tuple of: (img tensor, k-dim tensor)  ** the tensor is from k-dim latent space
@@ -516,21 +663,12 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
             variance_df = matrix_dataframe.var(axis=1)  # get the variance of all the genes [varience of each gene over all samples] 
             # (this practically 'flattens' the df to one column of 33538 entries - one entry for each gene over all the samples)
             variance_df = pd.DataFrame(data=variance_df, columns=['variance']) # convert it from a pandas series to a pandas df
-
-            print(f'--delete-- variance_df {variance_df}')
-
             # df.nlargest - This method is equivalent to df.sort_values(columns, ascending=False).head(n), but more performant.
             nlargest_variance_df = variance_df.nlargest(n=num_of_dims_k, columns=['variance'], keep='all')
-
-            print(f'--delete-- nlargest_variance_df {nlargest_variance_df}')
-
             # now use the indexes recieved above to retrieve the entries with the highest variance
             list_of_nlargest_indices = list(nlargest_variance_df.index.values) 
             # save it for future reference
             self.list_of_nlargest_indices = list_of_nlargest_indices
-
-            print(f'--delete-- list_of_nlargest_indices {list_of_nlargest_indices}')
-
             # #save  
             reduced_df = matrix_dataframe.iloc[list_of_nlargest_indices , :]  # get k rows (genes) with highest variance over all of the columns  
             reduced_df = reduced_df.reset_index()  # this causes a new column to appear - "index" which contains the old indices before resetting
@@ -555,17 +693,6 @@ class STDL_Dataset_KValuesPerImg_KGenesWithHighestVariance(torch.utils.data.Data
             self.mapping = reduced_df[["original_index_from_matrix_dataframe"]]
             reduced_df = reduced_df.drop(columns=["original_index_from_matrix_dataframe"])
             self.reduced_dataframe = reduced_df
-
-            # # print information if wanted
-            # print("the K genes with the highest variance are:")
-            # unflattened_list = row_mapping.iloc[k_row_indices].values.tolist()
-            # flattened_list_of_nlargest_indices_in_orig_df = [elem[0] for elem in unflattened_list]  # [val for sublist in unflattened_list for val in sublist]
-            # temp_df = pd.DataFrame(data=features_dataframe['gene_names'].iloc[flattened_list_of_nlargest_indices_in_orig_df] , columns=['gene_names'])  # .iloc returns values by order. and list_of_nlargest_indices is ordered desecndingly
-            # temp_df['variance'] = nlargest_variance_df['variance'].values.tolist() # add a column with the variance values
-            # print(temp_df)
-
-
-
 
 
         print("\n----- finished __init__ phase of  STDL_Dataset_LatentTensor -----\n")
@@ -907,4 +1034,339 @@ def create_smaller_images_from_biopsy_sample(path_to_dir):
     pass
     print(f'\nfinished cutting the big image')
     
+
+def create_smaller_images_from_biopsy_samples_mandalay_data(path_to_dir):
+    '''
+    Function to create_smaller_images_from_biopsy_sample
+    '''
+    print("\n----- entered function create_smaller_images_from_biopsy_sample -----")
+
+    # data points(x,y coordinate) for the tissue
+    path1 = path_to_dir + "/tissue_positions_list.csv"
+    positions_dataframe = pd.read_csv(path1,names=['barcode','tissue','row','col','x','y'])
+    print(f'path1:\n {path1}')
+
+    # import image: comes with BGR
+    path2 = path_to_dir + "/V1_Breast_Cancer_Block_A_Section_2_image.tif"
+    print(f'path2:\n {path2}')
+    img = cv2.imread(path2)
+    print(f'img.type {type(img)} ')
+    print(f'img.shape {img.shape} ')
+
+    # output path
+    out_path = path_to_dir + "/images/"
+
+    # crate the output folder if it doesnt exists
+    import os
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
+
+    ## TODO - get from "scalefactors_json" file. (leon's note)
+    # diameter & diameter for image 
+    spot_diameter_fullres = 177.4829519178534
+    spot_radius = int(spot_diameter_fullres/2)
+
+    # num of iterations
+    total_amount_of_spots = len(positions_dataframe.index)
+
+    for idx, row in positions_dataframe.iterrows():
+        if not row['tissue']:
+            continue
+        barcode = row['barcode']
+        x = row['x']
+        y = row['y']       
+
+        #file names
+        square_file_name = "{}_x{}_y{}_square.png".format(barcode,x,y)  # previously: '{}_x{}_y{}_{}_square.png'.format(idx,x,y,barcode)
+
+        #print progress
+        print(f'processing image {idx} of {total_amount_of_spots} with name: {square_file_name}', end='\r')
+
+        # square image
+        roi_square = img[y-spot_radius:y+spot_radius, x-spot_radius:x+spot_radius]
+        # plt.imshow(roi_square)
+        cv2.imwrite(out_path + square_file_name, roi_square)
+
+    pass
+    print(f'\nfinished cutting the big image')
+    
+
+##
+##  UP next: functions use to prepare data from mandalay in usable folders.
+##
+
+# def create_folders_from_new_mandalay_data(path_to_dir):
+#     # import glob
+#
+#     # mylist = [f for f in glob.glob("path/*.txt")]
+#
+#     spots_filenames = [filename for filename in listdir(path_to_dir) if filename.endswith(".csv") and not filename.__contains__("metadata")]
+#     images_filenames = [filename for filename in listdir(path_to_dir) if filename.endswith(".jpg")]
+#     stdata_filenames = [filename for filename in listdir(path_to_dir) if filename.endswith(".tsv")]
+#     spots_filenames.sort()
+#     images_filenames.sort()
+#     stdata_filenames.sort()
+#
+#     print(spots_filenames)
+#     print(f'****')
+#     print(images_filenames)
+#     print(f'****')
+#     print(stdata_filenames)
+#     print(f'****')
+#
+#     ## testing
+#     ### curr_sample_name = curr_filename.partition('_')[0].partition('/images/')[2]  # first partition to get everything before the first _ , second partition to get everything after /images/
+#     sample_names_from_spots_filenames = [(name.partition('spots_')[2].partition('.')[0])[2:] for name in spots_filenames]
+#     print(sample_names_from_spots_filenames)
+#     print(f'****')
+#     sample_names_from_images_filenames = [(name.partition('HE_')[2].partition('.')[0])[2:] for name in images_filenames]
+#     print(sample_names_from_images_filenames)
+#     print(f'****')
+#     sample_names_from_stdata_filenames = [(name.partition('_stdata')[0])[2:] for name in stdata_filenames]
+#     print(sample_names_from_stdata_filenames)
+#     print(f'****')
+#
+#     print(f'lengths: {len(sample_names_from_spots_filenames)}, {len(sample_names_from_images_filenames)}, {len(sample_names_from_stdata_filenames)}')
+#     intersection = [name for name in sample_names_from_images_filenames if name in sample_names_from_spots_filenames and name in sample_names_from_stdata_filenames]
+#     print(f'intersection length {len(intersection)} intersection:\n{intersection}')
+#     print(f'****')
+#
+#     ## now that we know that the intersection is full:
+#     new_folder_names = sample_names_from_images_filenames
+#
+#     import shutil
+#
+#     for name in new_folder_names:
+#         # create the new folder name
+#
+#         dir_name = os.path.join(path_to_dir, name)
+#         if not os.path.exists(dir_name):
+#             # os.umask(0)            # give permissions to the folder
+#             # os.makedirs(dir_name)
+#             try:
+#                 original_umask = os.umask(0)
+#                 os.makedirs(dir_name, mode=0o777)
+#             finally:
+#                 os.umask(original_umask)
+#
+#         ## copy all files into the new directory # TODO: copy them with identical names over all files ???
+#
+#         image_filename = [s for s in images_filenames if name in s][0]   # return first match that contains "name"
+#         spots_filename = [s for s in spots_filenames if name in s][0]    # return first match that contains "name"
+#         stdata_filename = [s for s in stdata_filenames if name in s][0]  # return first match that contains "name"
+#
+#         # image_filename = path_to_dir + image_filename
+#         # spots_filename = path_to_dir + spots_filename
+#         # stdata_filename = path_to_dir + stdata_filename
+#
+#         # shutil.copy2(src=image_filename, dst=dir_name)
+#         # shutil.copy2(src=spots_filename, dst=dir_name)
+#         # shutil.copy2(src=stdata_filename, dst=dir_name)
+#
+#         shutil.copy2(src=path_to_dir + image_filename, dst=dir_name + "/original_image.jpg")  #TODO: verify endings
+#         shutil.copy2(src=path_to_dir + spots_filename, dst=dir_name + "/spots.csv")
+#         shutil.copy2(src=path_to_dir + stdata_filename, dst=dir_name + "/stdata.tsv")
+
+
+
+
+
+# def create_image_subfolders_in_new_mandalay_data_folders(path_to_dir):
+#     ####
+#     print(f'\n\nentered: create_image_subfolders_in_new_mandalay_data_folders')
+#     subdir_list = [subdir for root, subdir, files in os.walk(path_to_dir, topdown=True)][0]
+#
+#     print(subdir_list)
+#
+#     # create an images folder under every subdir
+#     for subdir in subdir_list:
+#         print(subdir)
+#         create_smaller_images_from_large_image_in_mandalay_data(path_to_dir=path_to_dir + subdir) # assumption: there's a "/" between the 2 concatanated strings
+#
+#
+#
+#
+#
+# def create_smaller_images_from_large_image_in_mandalay_data(path_to_dir):
+#     '''
+#     Function to create_smaller_images_from_biopsy_sample
+#     '''
+#     print("\n----- entered function create_smaller_images_from_biopsy_sample -----")
+#     print(f' given path: {path_to_dir}')
+#     # data points(x,y coordinate) for the tissue
+#     path1 = path_to_dir + "/spots.csv"
+#     positions_dataframe = pd.read_csv(path1)
+#     positions_dataframe.columns = ['index', 'x', 'y']
+#
+#     # print(positions_dataframe) # TODO: important ! comment this later
+#     # print(f'path1:\n {path1}')
+#
+#     ## import image: comes with BGR
+#     path2 = path_to_dir + "/original_image.jpg"
+#     # print(f'path2:\n {path2}')
+#     img = cv2.imread(path2)
+#     print(f'img.type {type(img)} ')
+#     print(f'img.shape {img.shape} ')
+#
+#     # output path
+#     out_path = path_to_dir + "/images/"
+#
+#     # crate the output folder if it doesnt exists
+#     import os
+#     if not os.path.exists(out_path):
+#         os.makedirs(out_path)
+#
+#     ## TODO - get from "scalefactors_json" file. (leon's note)
+#     # diameter & diameter for image
+#     # NOTE: when "spot_diameter_fullres = 177.482" is given - the output image's size will be 176x176
+#     spot_diameter_fullres = 177.4829519178534
+#     spot_radius = int(spot_diameter_fullres/2)
+#
+#     # num of iterations
+#     total_amount_of_spots = len(positions_dataframe.index)
+#
+#     for idx, row in positions_dataframe.iterrows():
+#         #
+#         barcode = row['index']
+#         x = round(row['x'])
+#         y = round(row['y'])
+#
+#         #file names
+#         square_file_name = "{}_x{}_y{}_square.png".format(barcode,x,y)  # previously: '{}_x{}_y{}_{}_square.png'.format(idx,x,y,barcode)
+#
+#         #print progress
+#         print(f'processing image {idx + 1} of {total_amount_of_spots} with name: {square_file_name}', end='\r')
+#
+#         # square image
+#         roi_square = img[y-spot_radius:y+spot_radius, x-spot_radius:x+spot_radius]
+#         # plt.imshow(roi_square)
+#         cv2.imwrite(out_path + square_file_name, roi_square)
+#
+#
+#     pass
+#     print(f'\nfinished cutting the big image')
+#     print("\n----- finished function create_smaller_images_from_biopsy_sample -----")
+
+# def create_stdata_file_from_mtx():
+#     path_patient1_files = "C:/Users/royru/Downloads/new data STDL project from mandalay/patient1"
+#     path_patient2_files = "C:/Users/royru/Downloads/new data STDL project from mandalay/patient2"
+#
+#     for path_to_mtx_tsv_files_dir in [path_patient1_files, path_patient2_files]:
+#
+#         print("started reading features.tsv")
+#         path_to_features = path_to_mtx_tsv_files_dir + "/features.tsv"
+#         features_dataframe = pd.read_csv(path_to_features, sep='\t', header=None)
+#         features_dataframe.columns = ['feature_ids', 'gene_names', 'feature_types']  # giving columns their names
+#         print("V  finished reading features.tsv")
+#
+#         print("started reading barcodes.tsv")
+#         path_to_barcodes = path_to_mtx_tsv_files_dir + "/barcodes.tsv"
+#         barcodes_dataframe = pd.read_csv(path_to_barcodes, sep='\t', header=None)
+#         barcodes_dataframe.columns = ['barcodes']  # giving columns their names
+#         print("V  finished reading barcodes.tsv")
+#         barcodes = barcodes_dataframe['barcodes'].tolist()
+#
+#         print("started reading matrix.mtx. this might take some time ...")
+#         path_to_matrix = path_to_mtx_tsv_files_dir + "/matrix.mtx"
+#         matrix = scipy.io.mmread(path_to_matrix)
+#         matrix_dataframe = pd.DataFrame.sparse.from_spmatrix(
+#             matrix)  # NOTE: from: https://pandas.pydata.org/docs/user_guide/sparse.html
+#         print("V  finished reading matrix.mtx")
+#
+#         # testing 230920 morning
+#         print("adjusting matrix_dataframe")
+#         # matrix_dataframe = matrix_dataframe.replace([np.inf, -np.inf], np.nan)  # replace all inf values with a NaN value
+#         # matrix_dataframe = matrix_dataframe.fillna(0)  # fill all NaN values with 0 ....
+#         # matrix_dataframe = matrix_dataframe.astype(int) #convert value types to int
+#         print("V  finished working on matrix_dataframe")
+#
+#
+#         matrix_dataframe.index = features_dataframe.iloc[:, 0].to_list() # == feature_names_list  # == rows names
+#         matrix_dataframe.columns = barcodes_dataframe.iloc[:, 0].to_list()
+#
+#         print(matrix_dataframe)
+#         matrix_dataframe = matrix_dataframe.transpose()  # to fit the new files in the same shape
+#         print(matrix_dataframe)
+#
+#         matrix_dataframe.to_csv(path_to_mtx_tsv_files_dir + "/stdata.tsv", sep = '\t')
+
+
+
+
+class STDL_DS_Combination_Mandalay(torch.utils.data.Dataset):
+    '''
+    NOTE: every element of the dataset is a 2d tuple of: (img tensor, gene exp value)
+    NOTE: the above gene exp value is for a specific gene
+    '''
+
+    def __init__(self, list_of_datasets):
+        print("\n----- entering __init__ phase of  STDL_DS_Combination_Mandalay -----")
+
+        # Save important information from outside
+        self.list_of_datasets = list_of_datasets
+
+
+        self._list_of_ds_sizes = [len(ds) for ds in list_of_datasets]
+        self.index_offsets = np.cumsum(self._list_of_ds_sizes)  # cumsum = cumulative sum. this returns a list (length of datasets_list) in which every element is a cumulative sum of the length that far.
+                                                                                              # say the original DS is size 30. then this returns: [30,60,90,120,...]
+        
+        self._list_of_ds_sizes_with_no_augmentation = [ds.num_of_images_with_no_augmentation for ds in list_of_datasets]
+        self.num_of_images_with_no_augmentation =  np.cumsum(self._list_of_ds_sizes_with_no_augmentation)  # cumsum = cumulative sum. this returns a list (length of datasets_list) in which every element is a cumulative sum of the length that far.
+                                                                                              # say the original DS is size 30. then this returns: [30,60,90,120,...]
+        
+
+
+        # self._get_item_track_list = self._list_of_ds_sizes      # see logic in __getitem__
+        # self._curr_ds_index_to_getitem_from = 0           # see logic in __getitem__
+
+        self._num_of_all_samples = np.sum(self._list_of_ds_sizes)
+
+        print("\n----- finished __init__ phase of  STDL_DS_Combination_Mandalay -----\n")
+
+    def __len__(self):
+        return self._num_of_all_samples
+
+    def __getitem__(self, index):
+        '''
+        note:  index (param) is for in the range of the entire concatanated DS
+        '''
+        final_index_in_ds = index
+        for dataset_index, offset in enumerate(self.index_offsets):
+            if index < offset:
+                # if needed (if > 0) adjust index inside the wanted ds according to the cummulative index offsets
+                if dataset_index > 0:  
+                    final_index_in_ds = index - self.index_offsets[dataset_index-1]
+                # return entry from the relevant ds
+                return self.list_of_datasets[dataset_index][final_index_in_ds]
+            else: 
+                pass
+        # if we got here, the index is invalid
+        raise IndexError(f'{index} exceeds {self.length}')
+
+
+        return 
+
+    def _save_images_for_leon(self):
+        ds_mandalay = self.list_of_datasets[-3]
+        ds_patient1 = self.list_of_datasets[-2]
+        ds_patient2 = self.list_of_datasets[-1]
+
+        from torchvision.utils import save_image
+        # tensor_to_pil = torchTransform.ToPILImage()(ds_mandalay[10][0].squeeze_(0))
+        # save 4 images from ds_mandalay
+        save_image(ds_mandalay[10][0], 'leon_mandalay_img1.png')
+        save_image(ds_mandalay[11][0], 'leon_mandalay_img2.png')
+        save_image(ds_mandalay[12][0], 'leon_mandalay_img3.png')
+        save_image(ds_mandalay[20][0], 'leon_mandalay_img4.png')
+        # save 4 images from ds_patient1
+        save_image(ds_patient1[10][0], 'leon_patient1_img1.png')
+        save_image(ds_patient1[11][0], 'leon_patient1_img2.png')
+        save_image(ds_patient1[12][0], 'leon_patient1_img3.png')
+        save_image(ds_patient1[20][0], 'leon_patient1_img4.png')
+        # save 4 images from ds_patient2
+        save_image(ds_patient2[11][0], 'leon_patient2_img1.png')
+        save_image(ds_patient2[12][0], 'leon_patient2_img2.png')
+        save_image(ds_patient2[13][0], 'leon_patient2_img3.png')
+        save_image(ds_patient2[20][0], 'leon_patient2_img4.png')
+        
 
